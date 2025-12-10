@@ -4,5 +4,5 @@
 .vscode/launch.json
 .vscode/ipch
 
-# Configuration file with WiFi credentials
-include/config.h
+# Note: config.h is now committed to repo with production defaults
+# Users can override settings via web interface or by creating local config
