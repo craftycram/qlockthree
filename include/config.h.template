@@ -7,7 +7,7 @@
 
 // WiFi Manager Settings
 #define AP_SSID "qlockthree"
-#define AP_PASSWORD "qlockthree123"  // Leave empty for open AP
+#define AP_PASSWORD ""  // Leave empty for open AP
 #define WIFI_TIMEOUT 30000  // 30 seconds timeout for WiFi connection
 
 // OTA Configuration
