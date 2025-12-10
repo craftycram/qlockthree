@@ -1,0 +1,168 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.1)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install PlatformIO
+      run: |
+        python -m pip install --upgrade pip
+        pip install platformio
+        
+    - name: Update version in config
+      run: |
+        cp include/config.h.template include/config.h
+        sed -i 's/const char\* CURRENT_VERSION = ".*";/const char* CURRENT_VERSION = "${{ github.event.inputs.version }}";/' include/config.h
+        echo "Updated version to ${{ github.event.inputs.version }}"
+        
+    - name: Build firmware
+      run: |
+        pio run --environment esp32-c3-devkitc-02
+        
+    - name: Prepare release artifacts
+      run: |
+        mkdir -p release
+        cp .pio/build/esp32-c3-devkitc-02/firmware.bin release/qlockthree-esp32c3-${{ github.event.inputs.version }}.bin
+        cp .pio/build/esp32-c3-devkitc-02/bootloader.bin release/bootloader.bin
+        cp .pio/build/esp32-c3-devkitc-02/partitions.bin release/partitions.bin
+        
+        # Create combined firmware
+        python -m esptool --chip esp32c3 merge_bin -o release/qlockthree-esp32c3-${{ github.event.inputs.version }}-complete.bin \
+          0x0 release/bootloader.bin \
+          0x8000 release/partitions.bin \
+          0x10000 release/qlockthree-esp32c3-${{ github.event.inputs.version }}.bin
+        
+        # Create checksums
+        cd release
+        sha256sum *.bin > checksums.txt
+        
+        # Create build info
+        cat > build-info.json << EOF
+        {
+          "version": "${{ github.event.inputs.version }}",
+          "build_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "git_sha": "${{ github.sha }}",
+          "git_ref": "${{ github.ref }}",
+          "chip": "ESP32-C3",
+          "board": "esp32-c3-devkitc-02",
+          "prerelease": ${{ github.event.inputs.prerelease }}
+        }
+        EOF
+        
+    - name: Update config.h template with new version
+      run: |
+        sed -i 's/const char\* CURRENT_VERSION = ".*";/const char* CURRENT_VERSION = "${{ github.event.inputs.version }}";/' include/config.h.template
+        
+    - name: Commit version update
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add include/config.h.template
+        git commit -m "chore: bump version to ${{ github.event.inputs.version }}" || exit 0
+        git tag v${{ github.event.inputs.version }}
+        git push origin HEAD:${{ github.ref_name }}
+        git push origin v${{ github.event.inputs.version }}
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ github.event.inputs.version }}
+        name: QlockThree v${{ github.event.inputs.version }}
+        body: |
+          ## QlockThree Firmware v${{ github.event.inputs.version }}
+          
+          ### 🎯 Quick Start
+          1. **For new devices:** Flash `qlockthree-esp32c3-${{ github.event.inputs.version }}-complete.bin`
+          2. **For updates:** Use `qlockthree-esp32c3-${{ github.event.inputs.version }}.bin` (OTA compatible)
+          3. **Auto-update:** Devices will detect and install this version automatically
+          
+          ### 📦 Files
+          | File | Purpose | Size |
+          |------|---------|------|
+          | `qlockthree-esp32c3-${{ github.event.inputs.version }}.bin` | Main firmware for OTA updates | ![Size](https://img.shields.io/github/size/your-username/qlockthree/qlockthree-esp32c3-${{ github.event.inputs.version }}.bin) |
+          | `qlockthree-esp32c3-${{ github.event.inputs.version }}-complete.bin` | Complete firmware with bootloader | ![Size](https://img.shields.io/github/size/your-username/qlockthree/qlockthree-esp32c3-${{ github.event.inputs.version }}-complete.bin) |
+          | `checksums.txt` | SHA256 checksums for verification | - |
+          | `build-info.json` | Build metadata | - |
+          
+          ### 🔧 Installation
+          
+          #### Via OTA (Recommended for updates)
+          - Device will auto-detect if auto-updates are enabled
+          - Or visit device web interface → "Check for Updates" → "Install Update"
+          
+          #### Via USB/Serial
+          ```bash
+          # Complete firmware (first time or recovery)
+          esptool.py --chip esp32c3 --port /dev/ttyUSB0 write_flash 0x0 qlockthree-esp32c3-${{ github.event.inputs.version }}-complete.bin
+          
+          # Main firmware only (if bootloader already present)
+          esptool.py --chip esp32c3 --port /dev/ttyUSB0 write_flash 0x10000 qlockthree-esp32c3-${{ github.event.inputs.version }}.bin
+          ```
+          
+          #### Via PlatformIO
+          ```bash
+          git checkout v${{ github.event.inputs.version }}
+          pio run --target upload
+          ```
+          
+          ### ⚙️ Features in this Version
+          - ✅ WiFi Configuration Portal (captive portal setup)
+          - ✅ Over-The-Air (OTA) Updates 
+          - ✅ Automatic Updates from GitHub Releases
+          - ✅ Web Interface with device management
+          - ✅ mDNS support (qlockthree.local)
+          - ✅ Persistent WiFi credential storage
+          - ✅ JSON API for status and control
+          
+          ### 📊 Build Information
+          - **Build Date:** $(date -u '+%Y-%m-%d %H:%M:%S') UTC
+          - **Git SHA:** `${{ github.sha }}`
+          - **Target Hardware:** ESP32-C3 DevKit-02
+          - **Compiler:** PlatformIO with ESP-IDF framework
+          - **Pre-release:** ${{ github.event.inputs.prerelease }}
+          
+          ### 🔗 Useful Links
+          - [Setup Documentation](README.md)
+          - [WiFi Configuration Guide](README.md#wifi-configuration-options)
+          - [OTA Update Guide](README.md#automatic-updates)
+          - [Troubleshooting](README.md#troubleshooting)
+          
+          ### ✅ Checksum Verification
+          Download `checksums.txt` to verify firmware integrity:
+          ```bash
+          sha256sum -c checksums.txt
+          ```
+        files: |
+          release/qlockthree-esp32c3-${{ github.event.inputs.version }}.bin
+          release/qlockthree-esp32c3-${{ github.event.inputs.version }}-complete.bin
+          release/bootloader.bin
+          release/partitions.bin
+          release/checksums.txt
+          release/build-info.json
+        draft: false
+        prerelease: ${{ github.event.inputs.prerelease }}
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
