@@ -5,10 +5,14 @@
 #include <WebServer.h>
 #include <ESPmDNS.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include <Update.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include "config.h"
+
+// Hardcoded GitHub repository for auto-updates (not dependent on config)
+const char* GITHUB_UPDATE_URL = "https://api.github.com/repos/craftycram/qlockthree/releases/latest";
 
 // Create objects
 WebServer server(WEB_SERVER_PORT);
@@ -334,9 +338,13 @@ void checkForUpdates() {
   
   Serial.println("Checking for updates...");
   
+  WiFiClientSecure client;
+  client.setInsecure(); // Skip SSL certificate verification for GitHub API
+  
   HTTPClient http;
-  http.begin(UPDATE_URL);
+  http.begin(client, GITHUB_UPDATE_URL);
   http.addHeader("User-Agent", "QlockThree-ESP32");
+  http.setTimeout(15000); // 15 second timeout
   
   int httpCode = http.GET();
   
@@ -344,7 +352,7 @@ void checkForUpdates() {
     String payload = http.getString();
     
     // Parse JSON response
-    DynamicJsonDocument doc(2048);
+    JsonDocument doc;
     DeserializationError error = deserializeJson(doc, payload);
     
     if (!error) {
@@ -366,11 +374,13 @@ void checkForUpdates() {
       if (comparison == "outdated") {
         updateAvailable = true;
         
-        // Find download URL for binary
+        // Find download URL for main firmware binary (not bootloader or partitions)
         JsonArray assets = doc["assets"];
         for (JsonObject asset : assets) {
           String name = asset["name"].as<String>();
-          if (name.endsWith(".bin") || name.endsWith(".firmware")) {
+          // Look specifically for the main firmware file, not bootloader or partitions
+          if (name.startsWith("qlockthree-esp32c3-") && name.endsWith(".bin") && 
+              name.indexOf("complete") == -1 && name.indexOf("bootloader") == -1 && name.indexOf("partition") == -1) {
             downloadUrl = asset["browser_download_url"].as<String>();
             break;
           }
@@ -379,7 +389,7 @@ void checkForUpdates() {
         Serial.println("Update available! Download URL: " + downloadUrl);
         
         // Optionally auto-update (uncomment next line for automatic updates)
-        // performUpdate(downloadUrl);
+        performUpdate(downloadUrl);
         
       } else {
         updateAvailable = false;
@@ -403,8 +413,14 @@ bool performUpdate(String url) {
   
   Serial.println("Starting firmware update from: " + url);
   
+  WiFiClientSecure client;
+  client.setInsecure(); // Skip SSL certificate verification for GitHub downloads
+  
   HTTPClient http;
-  http.begin(url);
+  http.begin(client, url);
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS); // Handle GitHub redirects
+  http.setUserAgent("QlockThree-ESP32");
+  http.setTimeout(30000); // 30 second timeout
   
   int httpCode = http.GET();
   
