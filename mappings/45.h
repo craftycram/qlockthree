@@ -44,7 +44,7 @@ static const WordMapping HOUR_WORDS[] = {
     {"ZWÖLF", 61, 5, false},   // Row 5: ZWÖLF (57-60) - skipping DR
     {"EINS", 40, 4, false},    // Row 7: EINS (78-81) - inside ZWEINSIEBEN
     {"ZWEI", 42, 4, false},    // Row 7: ZWEI (77-80)
-    {"DREI", 90, 4, false},    // Row 6: DREI (73-76)
+    {"DREI", 53, 4, false},    // Row 6: DREI (73-76)
     {"VIER", 27, 4, false},    // Row 8: VIER (91-94)
     {"FÜNF", 58, 4, false},    // Row 5: FÜNF (61-64)
     {"SECHS", 20, 5, false},   // Row 9: SECHS (99-103)
