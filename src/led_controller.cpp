@@ -112,6 +112,13 @@ void LEDController::update() {
 void LEDController::setPattern(LEDPattern pattern) {
     if (currentPattern != pattern) {
         Serial.printf("DEBUG: setPattern called - changing from %d to %d\n", (int)currentPattern, (int)pattern);
+        
+        // If switching away from startup animation, restore user brightness
+        if (currentPattern == LEDPattern::STARTUP_ANIMATION && pattern != LEDPattern::STARTUP_ANIMATION) {
+            FastLED.setBrightness(brightness);
+            Serial.printf("DEBUG: Restoring brightness to %d after startup animation\n", brightness);
+        }
+        
         currentPattern = pattern;
         animationStep = 0;
         hue = 0;
@@ -145,7 +152,9 @@ void LEDController::setPattern(LEDPattern pattern) {
                 startupAnimationStart = millis();
                 startupAnimationStep = 0;
                 startupAnimationComplete = false;
-                Serial.println("DEBUG: Pattern STARTUP_ANIMATION - starting rainbow sweep");
+                // Set brightness to 10 for startup animation
+                FastLED.setBrightness(10);
+                Serial.println("DEBUG: Pattern STARTUP_ANIMATION - starting rainbow sweep at brightness 10");
                 break;
         }
         FastLED.show();
@@ -296,8 +305,10 @@ void LEDController::updateStartupAnimation() {
         // Animation complete - turn off LEDs and mark as complete
         clear();
         startupAnimationComplete = true;
+        // Restore original brightness setting
+        FastLED.setBrightness(brightness);
         setPattern(LEDPattern::OFF);
-        Serial.println("Startup animation complete");
+        Serial.printf("Startup animation complete - brightness restored to %d\n", brightness);
         return;
     }
     

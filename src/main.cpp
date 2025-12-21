@@ -42,9 +42,13 @@ void setup() {
         delay(10); // Small delay for smooth animation
     }
     
-    // Animation complete, continue with setup
-    Serial.println("Startup animation complete, continuing setup...");
-    ledController.showSetupMode(); // Show setup animation during WiFi initialization
+    // Animation complete, wait 500ms before turning off
+    Serial.println("Startup animation complete, waiting 500ms...");
+    delay(500);
+    
+    // Turn off LEDs after startup animation
+    Serial.println("Turning off LEDs, continuing setup...");
+    ledController.setPattern(LEDPattern::OFF);
     
     // Initialize WiFi Manager
     wifiManager.begin(AP_SSID, AP_PASSWORD, WIFI_TIMEOUT);
@@ -52,11 +56,6 @@ void setup() {
     
     // Only setup other services if WiFi is connected
     if (WiFi.status() == WL_CONNECTED) {
-        // Show WiFi connected status
-        ledController.setSolidColor(CRGB::Green);
-        ledController.setPattern(LEDPattern::SOLID_COLOR);
-        delay(1000);
-        
         // Initialize Time Manager
         timeManager.begin();
         
@@ -77,8 +76,8 @@ void setup() {
         }
         autoUpdater.checkForUpdates();
         
-        // Start showing actual time
-        ledController.setPattern(LEDPattern::CLOCK_DISPLAY);
+        // Keep LEDs off until time is synced - clock display will start when time is synced
+        ledController.setPattern(LEDPattern::OFF);
         
         Serial.println("Setup complete!");
         Serial.print("IP address: ");
@@ -125,8 +124,17 @@ void loop() {
     
     // QlockThree main functionality - show current time using TimeManager
     static unsigned long lastTimeUpdate = 0;
+    static bool clockStarted = false;
+    
     if (millis() - lastTimeUpdate > 1000) { // Update time display every second
         lastTimeUpdate = millis();
+        
+        // Start clock display only when time is synced
+        if (timeManager.isTimeSynced() && !clockStarted) {
+            Serial.println("Time synced - starting clock display");
+            ledController.setPattern(LEDPattern::CLOCK_DISPLAY);
+            clockStarted = true;
+        }
         
         // Get accurate time from TimeManager
         if (timeManager.isTimeSynced()) {
@@ -138,22 +146,13 @@ void loop() {
             if (ledController.getCurrentPattern() == LEDPattern::CLOCK_DISPLAY) {
                 ledController.showTime(hours, minutes);
             }
-            // Debug: Print current pattern
-            static LEDPattern lastPattern = LEDPattern::OFF;
-            if (ledController.getCurrentPattern() != lastPattern) {
-                lastPattern = ledController.getCurrentPattern();
-                Serial.printf("LED Pattern changed to: %d\n", (int)lastPattern);
-            }
-        } else {
-            // Fallback to system time if NTP not synced yet
-            unsigned long totalSeconds = millis() / 1000;
-            int hours = (totalSeconds / 3600) % 24;
-            int minutes = (totalSeconds / 60) % 60;
-            
-            // Show time on QlockThree LEDs
-            if (ledController.getCurrentPattern() == LEDPattern::CLOCK_DISPLAY) {
-                ledController.showTime(hours, minutes);
-            }
+        }
+        
+        // Debug: Print current pattern
+        static LEDPattern lastPattern = LEDPattern::OFF;
+        if (ledController.getCurrentPattern() != lastPattern) {
+            lastPattern = ledController.getCurrentPattern();
+            Serial.printf("LED Pattern changed to: %d\n", (int)lastPattern);
         }
     }
     
