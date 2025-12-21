@@ -30,7 +30,21 @@ void setup() {
     // Initialize LED Controller first
     ledController.begin(LED_DATA_PIN, LED_NUM_LEDS, LED_BRIGHTNESS);
     ledController.setSpeed(LED_ANIMATION_SPEED);
-    ledController.showSetupMode(); // Show setup animation during initialization
+    
+    // Show beautiful startup animation (rainbow sweep for 1 second)
+    Serial.println("Starting rainbow startup animation...");
+    ledController.showStartupAnimation();
+    
+    // Keep the animation running for exactly 1 second while doing non-blocking initialization
+    unsigned long startupStart = millis();
+    while (millis() - startupStart < 1000) {
+        ledController.update(); // Update the animation
+        delay(10); // Small delay for smooth animation
+    }
+    
+    // Animation complete, continue with setup
+    Serial.println("Startup animation complete, continuing setup...");
+    ledController.showSetupMode(); // Show setup animation during WiFi initialization
     
     // Initialize WiFi Manager
     wifiManager.begin(AP_SSID, AP_PASSWORD, WIFI_TIMEOUT);
@@ -123,6 +137,12 @@ void loop() {
             // Show time on QlockThree LEDs
             if (ledController.getCurrentPattern() == LEDPattern::CLOCK_DISPLAY) {
                 ledController.showTime(hours, minutes);
+            }
+            // Debug: Print current pattern
+            static LEDPattern lastPattern = LEDPattern::OFF;
+            if (ledController.getCurrentPattern() != lastPattern) {
+                lastPattern = ledController.getCurrentPattern();
+                Serial.printf("LED Pattern changed to: %d\n", (int)lastPattern);
             }
         } else {
             // Fallback to system time if NTP not synced yet

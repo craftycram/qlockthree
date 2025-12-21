@@ -11,7 +11,10 @@ LEDController::LEDController() :
     solidColor(CRGB::White),
     lastUpdate(0),
     animationStep(0),
-    hue(0) {
+    hue(0),
+    startupAnimationStart(0),
+    startupAnimationStep(0),
+    startupAnimationComplete(false) {
 }
 
 void LEDController::begin(int pin, int numLedsCount, int brightnessValue) {
@@ -45,8 +48,8 @@ void LEDController::begin(int pin, int numLedsCount, int brightnessValue) {
     // Initialize mapping manager
     mappingManager.begin();
     
-    // Initialize FastLED
-    FastLED.addLeds<WS2812, 0>(leds, numLeds).setCorrection(TypicalLEDStrip);
+    // Initialize FastLED with GRB color order (correct for your WS2812 strips)
+    FastLED.addLeds<WS2812, 0, GRB>(leds, numLeds).setCorrection(TypicalLEDStrip);
     FastLED.setBrightness(brightness);
     
     // Clear all LEDs initially
@@ -97,6 +100,10 @@ void LEDController::update() {
         case LEDPattern::UPDATE_MODE:
             updateUpdateMode();
             break;
+            
+        case LEDPattern::STARTUP_ANIMATION:
+            updateStartupAnimation();
+            break;
     }
     
     FastLED.show();
@@ -104,6 +111,7 @@ void LEDController::update() {
 
 void LEDController::setPattern(LEDPattern pattern) {
     if (currentPattern != pattern) {
+        Serial.printf("DEBUG: setPattern called - changing from %d to %d\n", (int)currentPattern, (int)pattern);
         currentPattern = pattern;
         animationStep = 0;
         hue = 0;
@@ -112,33 +120,50 @@ void LEDController::setPattern(LEDPattern pattern) {
         switch (pattern) {
             case LEDPattern::OFF:
                 clear();
+                Serial.println("DEBUG: Pattern OFF - LEDs cleared");
                 break;
                 
             case LEDPattern::SOLID_COLOR:
                 fill(solidColor);
+                Serial.printf("DEBUG: Pattern SOLID_COLOR - filled with RGB(%d, %d, %d)\n", solidColor.r, solidColor.g, solidColor.b);
                 break;
                 
             case LEDPattern::RAINBOW:
             case LEDPattern::BREATHING:
             case LEDPattern::SETUP_MODE:
             case LEDPattern::UPDATE_MODE:
-                // These will be handled in update()
+                Serial.printf("DEBUG: Pattern %d - will be handled in update()\n", (int)pattern);
                 break;
                 
             case LEDPattern::CLOCK_DISPLAY:
                 clear();
-                // Will be updated with actual time in update()
+                Serial.println("DEBUG: Pattern CLOCK_DISPLAY - LEDs cleared, will show time");
+                break;
+                
+            case LEDPattern::STARTUP_ANIMATION:
+                clear();
+                startupAnimationStart = millis();
+                startupAnimationStep = 0;
+                startupAnimationComplete = false;
+                Serial.println("DEBUG: Pattern STARTUP_ANIMATION - starting rainbow sweep");
                 break;
         }
         FastLED.show();
+        Serial.println("DEBUG: FastLED.show() called after pattern change");
     }
 }
 
 void LEDController::setSolidColor(CRGB color) {
+    Serial.printf("DEBUG: setSolidColor called with RGB(%d, %d, %d)\n", color.r, color.g, color.b);
     solidColor = color;
+    Serial.printf("DEBUG: Current pattern is: %d\n", (int)currentPattern);
+    
     if (currentPattern == LEDPattern::SOLID_COLOR) {
         fill(color);
         FastLED.show();
+        Serial.println("DEBUG: Applied solid color and updated FastLED");
+    } else {
+        Serial.printf("DEBUG: Color saved but not applied (pattern is %d, not SOLID_COLOR)\n", (int)currentPattern);
     }
 }
 
@@ -186,6 +211,10 @@ void LEDController::showWiFiConnecting() {
         leds[i] = CRGB::Blue;
     }
     FastLED.show();
+}
+
+void LEDController::showStartupAnimation() {
+    setPattern(LEDPattern::STARTUP_ANIMATION);
 }
 
 void LEDController::showError() {
@@ -255,6 +284,69 @@ void LEDController::updateUpdateMode() {
     // Pulsing orange pattern for update mode
     uint8_t wave = beatsin8(60); // 60 BPM pulse
     fill(CHSV(32, 255, wave)); // Orange color
+}
+
+void LEDController::updateStartupAnimation() {
+    unsigned long elapsed = millis() - startupAnimationStart;
+    
+    // Animation duration: 1 second (1000ms)
+    const unsigned long animationDuration = 1000;
+    
+    if (elapsed >= animationDuration) {
+        // Animation complete - turn off LEDs and mark as complete
+        clear();
+        startupAnimationComplete = true;
+        setPattern(LEDPattern::OFF);
+        Serial.println("Startup animation complete");
+        return;
+    }
+    
+    // Clear all LEDs first
+    clear();
+    
+    // QlockThree LED sequence (top to bottom, left to right within each row)
+    // Your sequence: 112-122, 111-101, 90-100, 89-79, 68-78, 67-57, 46-56, 45-35, 24-34, 23-13, 1-11
+    const int rowStarts[] = {112, 111, 90, 89, 68, 67, 46, 45, 24, 23, 1};
+    const int rowEnds[]   = {122, 101, 100, 79, 78, 57, 56, 35, 34, 13, 11};
+    const int numRows = 11;
+    
+    // Total LEDs in sequence
+    int totalSequenceLEDs = 0;
+    for (int i = 0; i < numRows; i++) {
+        totalSequenceLEDs += abs(rowEnds[i] - rowStarts[i]) + 1;
+    }
+    
+    // Calculate how many LEDs should be lit based on time elapsed
+    float progress = (float)elapsed / (float)animationDuration;
+    int ledsToLight = (int)(progress * totalSequenceLEDs);
+    
+    // Light LEDs in sequence with rainbow colors
+    int currentLED = 0;
+    
+    for (int row = 0; row < numRows; row++) {
+        int start = rowStarts[row];
+        int end = rowEnds[row];
+        int step = (start <= end) ? 1 : -1;
+        
+        for (int led = start; led != end + step; led += step) {
+            if (currentLED >= ledsToLight) {
+                return; // Stop lighting LEDs
+            }
+            
+            // Calculate rainbow hue based on position in sequence
+            uint8_t hue = (currentLED * 255) / totalSequenceLEDs;
+            
+            // Convert 1-based LED numbering to 0-based array index
+            int arrayIndex = led - 1;
+            
+            // Set the LED with rainbow color
+            if (arrayIndex >= 0 && arrayIndex < numLeds) {
+                leds[arrayIndex] = CHSV(hue, 255, 255); // Full saturation and brightness
+            }
+            
+            currentLED++;
+        }
+    }
 }
 
 // QlockThree specific word mapping functions
@@ -340,6 +432,7 @@ void LEDController::loadSettings() {
 }
 
 void LEDController::saveSettings() {
+    preferences.end(); // Ensure any previous session is closed
     if (!preferences.begin("led_config", false)) {
         Serial.println("Failed to open LED preferences for writing");
         return;
@@ -374,7 +467,7 @@ void LEDController::setNumLeds(int count) {
         
         // Reinitialize FastLED with new count
         FastLED.clear();
-        FastLED.addLeds<WS2812, 0>(leds, numLeds).setCorrection(TypicalLEDStrip);
+        FastLED.addLeds<WS2812, 0, GRB>(leds, numLeds).setCorrection(TypicalLEDStrip);
         FastLED.setBrightness(brightness);
         
         clear();

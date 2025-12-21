@@ -13,7 +13,8 @@ enum class LEDPattern {
     BREATHING,
     CLOCK_DISPLAY,
     SETUP_MODE,
-    UPDATE_MODE
+    UPDATE_MODE,
+    STARTUP_ANIMATION
 };
 
 class LEDController {
@@ -34,6 +35,7 @@ public:
     void showUpdateMode();
     void showWiFiConnecting();
     void showError();
+    void showStartupAnimation();
     
     // Mapping management
     void setMapping(MappingType type);
@@ -77,12 +79,18 @@ private:
     uint8_t animationStep;
     uint16_t hue;
     
+    // Startup animation state
+    unsigned long startupAnimationStart;
+    uint16_t startupAnimationStep;
+    bool startupAnimationComplete;
+    
     // Pattern implementations
     void updateRainbow();
     void updateBreathing();
     void updateClockDisplay();
     void updateSetupMode();
     void updateUpdateMode();
+    void updateStartupAnimation();
     
     // QlockThree word mapping (example for German)
     void illuminateWord(int startLed, int length);

@@ -57,8 +57,10 @@ void WebServerManager::setupRoutes() {
     server.on("/led/pattern", HTTP_POST, [this]() { handleLEDPattern(); });
     server.on("/led/mapping", [this]() { handleLEDMapping(); });
     server.on("/led/mapping/set", HTTP_POST, [this]() { handleSetLEDMapping(); });
+    
+    // ENHANCED: Add color configuration support
     server.on("/led/config", HTTP_POST, [this]() { 
-        // Handle LED configuration updates
+        // Handle LED configuration updates with color support
         if (!ledController) {
             server.send(500, "text/plain", "LED controller not available");
             return;
@@ -85,6 +87,45 @@ void WebServerManager::setupRoutes() {
             if (numLeds > 0 && numLeds <= 500) {
                 ledController->setNumLeds(numLeds);
             }
+        }
+        
+        // ENHANCED: Color configuration support
+        if (server.hasArg("color_r") && server.hasArg("color_g") && server.hasArg("color_b")) {
+            Serial.println("DEBUG: Web server received color_r, color_g, color_b parameters");
+            String rStr = server.arg("color_r");
+            String gStr = server.arg("color_g");
+            String bStr = server.arg("color_b");
+            Serial.printf("DEBUG: Raw color values - R:'%s', G:'%s', B:'%s'\n", rStr.c_str(), gStr.c_str(), bStr.c_str());
+            
+            int r = rStr.toInt();
+            int g = gStr.toInt();
+            int b = bStr.toInt();
+            Serial.printf("DEBUG: Parsed color values - R:%d, G:%d, B:%d\n", r, g, b);
+            
+            if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255) {
+                Serial.println("DEBUG: Color values are valid, creating CRGB object");
+                CRGB color = CRGB(r, g, b);
+                Serial.printf("DEBUG: Calling setSolidColor with RGB(%d, %d, %d)\n", r, g, b);
+                ledController->setSolidColor(color);
+                // Set pattern to solid color to show the new color immediately
+                Serial.println("DEBUG: Calling setPattern(SOLID_COLOR)");
+                ledController->setPattern(LEDPattern::SOLID_COLOR);
+                Serial.println("DEBUG: Calling saveSettings()");
+                ledController->saveSettings();
+                Serial.printf("Color changed to RGB(%d, %d, %d)\n", r, g, b);
+            } else {
+                Serial.printf("DEBUG: Invalid color values - R:%d, G:%d, B:%d\n", r, g, b);
+            }
+        } else {
+            Serial.println("DEBUG: Web server color config - missing some color parameters");
+            if (server.hasArg("color_r")) Serial.printf("DEBUG: Has color_r: %s\n", server.arg("color_r").c_str());
+            if (server.hasArg("color_g")) Serial.printf("DEBUG: Has color_g: %s\n", server.arg("color_g").c_str());
+            if (server.hasArg("color_b")) Serial.printf("DEBUG: Has color_b: %s\n", server.arg("color_b").c_str());
+        }
+        
+        // Save settings after any change
+        if (server.hasArg("save")) {
+            ledController->saveSettings();
         }
         
         server.send(200, "text/plain", "LED settings updated");
@@ -240,7 +281,7 @@ String WebServerManager::getStatusHTML() {
     
     html += "<br>";
     html += "<a href='/status' class='button'>JSON Status</a>";
-    html += "<a href='/led' class='button'>LED Config</a>";
+    html += "<a href='/led' class='button'>🌈 LED Config</a>";
     html += "<a href='/time' class='button'>Time Config</a>";
     html += "<a href='javascript:location.reload()' class='button'>Refresh</a>";
     html += "<button onclick='checkUpdate()' class='button check-btn'>Check for Updates</button>";
@@ -437,7 +478,7 @@ String WebServerManager::getTimeStatusJSON() {
     }
 }
 
-// LED configuration handlers
+// ENHANCED LED configuration handlers
 void WebServerManager::handleLEDStatus() {
     server.send(200, "application/json", getLEDStatusJSON());
 }
@@ -514,41 +555,133 @@ String WebServerManager::getLEDStatusJSON() {
     return json;
 }
 
+// ENHANCED LED Configuration HTML with Color Picker
 String WebServerManager::getLEDConfigHTML() {
     String html = "<!DOCTYPE html><html><head>";
     html += "<title>QlockThree LED Configuration</title>";
     html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-    html += "<style>body{font-family:Arial,sans-serif;margin:40px;background:#f0f0f0}";
-    html += ".container{background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}";
-    html += "h1{color:#333;text-align:center}";
-    html += ".control-group{margin:20px 0;padding:15px;background:#f8f9fa;border-radius:5px}";
-    html += "label{display:block;margin-bottom:5px;font-weight:bold}";
-    html += "input,select{width:100%;padding:8px;margin-bottom:10px;border:1px solid #ddd;border-radius:4px}";
-    html += ".slider{width:100%}";
-    html += ".button{display:inline-block;padding:10px 20px;margin:5px;background:#007bff;color:white;text-decoration:none;border-radius:4px;border:none;cursor:pointer}";
-    html += ".button:hover{background:#0056b3}";
-    html += ".pattern-btn{background:#28a745}.pattern-btn:hover{background:#1e7e34}";
-    html += ".test-btn{background:#ffc107;color:#212529}.test-btn:hover{background:#e0a800}";
-    html += "#brightness-value,#speed-value{font-weight:bold;color:#007bff}</style>";
+    html += "<style>";
+    html += "body{font-family:Arial,sans-serif;margin:20px;background:#f0f0f0;}";
+    html += ".container{background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1);max-width:800px;margin:0 auto;}";
+    html += "h1{color:#333;text-align:center;margin-bottom:30px;}";
+    html += ".control-group{margin:20px 0;padding:20px;background:#f8f9fa;border-radius:8px;border-left:4px solid #007bff;}";
+    html += ".control-group h3{margin-top:0;color:#495057;}";
+    html += "label{display:block;margin:10px 0 5px 0;font-weight:bold;color:#495057;}";
+    html += "input,select{width:100%;padding:10px;margin-bottom:10px;border:1px solid #ddd;border-radius:4px;box-sizing:border-box;}";
+    html += ".slider{width:100%;}";
+    html += ".color-input{width:60px;height:40px;padding:0;border:2px solid #ddd;cursor:pointer;}";
+    html += ".button{display:inline-block;padding:12px 24px;margin:8px;background:#007bff;color:white;text-decoration:none;border-radius:4px;border:none;cursor:pointer;font-size:14px;transition:background 0.3s;}";
+    html += ".button:hover{background:#0056b3;}";
+    html += ".pattern-btn{background:#28a745;}.pattern-btn:hover{background:#1e7e34;}";
+    html += ".test-btn{background:#ffc107;color:#212529;}.test-btn:hover{background:#e0a800;}";
+    html += ".danger-btn{background:#dc3545;}.danger-btn:hover{background:#c82333;}";
+    html += ".value-display{font-weight:bold;color:#007bff;margin-left:10px;}";
+    html += ".color-preview{display:inline-block;width:30px;height:30px;border:2px solid #333;border-radius:4px;margin-left:10px;vertical-align:middle;}";
+    html += ".preset-colors{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}";
+    html += ".preset-color{width:40px;height:40px;border:2px solid #333;border-radius:4px;cursor:pointer;transition:transform 0.2s;}";
+    html += ".preset-color:hover{transform:scale(1.1);}";
+    html += ".grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;}";
+    html += "#brightness-value,#speed-value{font-weight:bold;color:#007bff;}";
+    html += "</style>";
     
     html += "<script>";
-    html += "function updateBrightness(val) {";
-    html += "  document.getElementById('brightness-value').textContent = val;";
-    html += "  fetch('/led/config', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'brightness=' + val});";
+    html += "document.addEventListener('DOMContentLoaded',function(){loadCurrentSettings();});";
+    
+    html += "function updateBrightness(val){";
+    html += "document.getElementById('brightness-value').textContent=val;";
+    html += "sendConfig('brightness',val);";
     html += "}";
-    html += "function updateSpeed(val) {";
-    html += "  document.getElementById('speed-value').textContent = val;";
-    html += "  fetch('/led/config', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'speed=' + val});";
+    
+    html += "function updateSpeed(val){";
+    html += "document.getElementById('speed-value').textContent=val;";
+    html += "sendConfig('speed',val);";
     html += "}";
-    html += "function updateNumLeds() {";
-    html += "  const val = document.getElementById('num-leds').value;";
-    html += "  if (confirm('Changing LED count requires restart. Continue?')) {";
-    html += "    fetch('/led/config', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'num_leds=' + val});";
-    html += "  }";
+    
+    html += "function updateClockColor(color){";
+    html += "document.getElementById('clock-color-preview').style.backgroundColor=color;";
+    html += "const rgb=hexToRgb(color);";
+    html += "sendColorConfig(rgb.r,rgb.g,rgb.b);";
     html += "}";
-    html += "function testPattern(pattern) {";
-    html += "  fetch('/led/test', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'pattern=' + pattern});";
+    
+    html += "function setPresetColor(color){";
+    html += "document.getElementById('clock-color').value=color;";
+    html += "updateClockColor(color);";
     html += "}";
+    
+    html += "function updateNumLeds(){";
+    html += "const val=document.getElementById('num-leds').value;";
+    html += "if(confirm('Changing LED count requires restart. Continue?')){";
+    html += "sendConfig('num_leds',val);";
+    html += "}";
+    html += "}";
+    
+    html += "function testPattern(pattern){";
+    html += "fetch('/led/test',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'pattern='+pattern}).then(r=>r.text()).then(data=>{";
+    html += "updateStatus('Pattern changed to '+pattern);";
+    html += "});";
+    html += "}";
+    
+    html += "function sendConfig(param,value){";
+    html += "fetch('/led/config',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:param+'='+encodeURIComponent(value)}).then(r=>r.text()).then(data=>{";
+    html += "updateStatus(data);";
+    html += "}).catch(err=>{";
+    html += "updateStatus('Error: '+err.message);";
+    html += "});";
+    html += "}";
+    
+    html += "function sendColorConfig(r,g,b){";
+    html += "const data='color_r='+encodeURIComponent(r)+'&color_g='+encodeURIComponent(g)+'&color_b='+encodeURIComponent(b);";
+    html += "fetch('/led/config',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:data}).then(r=>r.text()).then(data=>{";
+    html += "updateStatus('Color updated: '+data);";
+    html += "}).catch(err=>{";
+    html += "updateStatus('Color error: '+err.message);";
+    html += "});";
+    html += "}";
+    
+    html += "function loadCurrentSettings(){";
+    html += "fetch('/led/status').then(r=>r.json()).then(data=>{";
+    html += "if(data.brightness!==undefined){";
+    html += "document.getElementById('brightness').value=data.brightness;";
+    html += "document.getElementById('brightness-value').textContent=data.brightness;";
+    html += "}";
+    html += "if(data.speed!==undefined){";
+    html += "document.getElementById('speed').value=data.speed;";
+    html += "document.getElementById('speed-value').textContent=data.speed;";
+    html += "}";
+    html += "if(data.num_leds!==undefined){";
+    html += "document.getElementById('num-leds').value=data.num_leds;";
+    html += "}";
+    html += "if(data.color){";
+    html += "const hex=rgbToHex(data.color.r,data.color.g,data.color.b);";
+    html += "document.getElementById('clock-color').value=hex;";
+    html += "document.getElementById('clock-color-preview').style.backgroundColor=hex;";
+    html += "}";
+    html += "updateStatus('Settings loaded');";
+    html += "}).catch(err=>{";
+    html += "updateStatus('Failed to load settings');";
+    html += "});";
+    html += "}";
+    
+    html += "function saveSettings(){";
+    html += "sendConfig('save','1');";
+    html += "updateStatus('Settings saved successfully!');";
+    html += "}";
+    
+    html += "function updateStatus(message){";
+    html += "console.log('Status:',message);";
+    html += "}";
+    
+    html += "function hexToRgb(hex){";
+    html += "const r=parseInt(hex.slice(1,3),16);";
+    html += "const g=parseInt(hex.slice(3,5),16);";
+    html += "const b=parseInt(hex.slice(5,7),16);";
+    html += "return{r,g,b};";
+    html += "}";
+    
+    html += "function rgbToHex(r,g,b){";
+    html += "return'#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);";
+    html += "}";
+    
     html += "</script>";
     
     html += "</head><body>";
@@ -559,13 +692,40 @@ String WebServerManager::getLEDConfigHTML() {
         html += "<div class='control-group'>";
         html += "<h3>💡 Brightness Control</h3>";
         html += "<label for='brightness'>Brightness: <span id='brightness-value'>" + String(ledController->getBrightness()) + "</span></label>";
-        html += "<input type='range' id='brightness' class='slider' min='0' max='255' value='" + String(ledController->getBrightness()) + "' onchange='updateBrightness(this.value)'>";
+        html += "<input type='range' id='brightness' class='slider' min='0' max='255' value='" + String(ledController->getBrightness()) + "' oninput='updateBrightness(this.value)'>";
+        html += "</div>";
+        
+        // ENHANCED: Color Configuration Section
+        html += "<div class='control-group'>";
+        html += "<h3>🎨 Color Configuration</h3>";
+        html += "<p><strong>📝 Instructions:</strong> Select a color below, then click '💎 Show Selected Color' to see it on your QlockThree. The main loop shows time in clock mode, so you need to switch to solid color mode to test colors.</p>";
+        
+        CRGB currentColor = ledController->getSolidColor();
+        String currentHex = "#" + String(currentColor.r < 16 ? "0" : "") + String(currentColor.r, HEX) + 
+                           String(currentColor.g < 16 ? "0" : "") + String(currentColor.g, HEX) + 
+                           String(currentColor.b < 16 ? "0" : "") + String(currentColor.b, HEX);
+        
+        html += "<label for='clock-color'>Clock Display Color:</label>";
+        html += "<input type='color' id='clock-color' class='color-input' value='" + currentHex + "' onchange='updateClockColor(this.value)'>";
+        html += "<span id='clock-color-preview' class='color-preview' style='background-color:" + currentHex + ";'></span>";
+        
+        html += "<label>Preset Colors:</label>";
+        html += "<div class='preset-colors'>";
+        html += "<div class='preset-color' style='background-color:#ffffff' onclick=\"setPresetColor('#ffffff')\" title='White'></div>";
+        html += "<div class='preset-color' style='background-color:#ff0000' onclick=\"setPresetColor('#ff0000')\" title='Red'></div>";
+        html += "<div class='preset-color' style='background-color:#00ff00' onclick=\"setPresetColor('#00ff00')\" title='Green'></div>";
+        html += "<div class='preset-color' style='background-color:#0000ff' onclick=\"setPresetColor('#0000ff')\" title='Blue'></div>";
+        html += "<div class='preset-color' style='background-color:#ffff00' onclick=\"setPresetColor('#ffff00')\" title='Yellow'></div>";
+        html += "<div class='preset-color' style='background-color:#ff00ff' onclick=\"setPresetColor('#ff00ff')\" title='Magenta'></div>";
+        html += "<div class='preset-color' style='background-color:#00ffff' onclick=\"setPresetColor('#00ffff')\" title='Cyan'></div>";
+        html += "<div class='preset-color' style='background-color:#ffa500' onclick=\"setPresetColor('#ffa500')\" title='Orange'></div>";
+        html += "</div>";
         html += "</div>";
         
         html += "<div class='control-group'>";
         html += "<h3>⚡ Animation Speed</h3>";
         html += "<label for='speed'>Speed: <span id='speed-value'>" + String(ledController->getSpeed()) + "</span></label>";
-        html += "<input type='range' id='speed' class='slider' min='0' max='255' value='" + String(ledController->getSpeed()) + "' onchange='updateSpeed(this.value)'>";
+        html += "<input type='range' id='speed' class='slider' min='0' max='255' value='" + String(ledController->getSpeed()) + "' oninput='updateSpeed(this.value)'>";
         html += "</div>";
         
         html += "<div class='control-group'>";
@@ -577,13 +737,19 @@ String WebServerManager::getLEDConfigHTML() {
         html += "</div>";
         
         html += "<div class='control-group'>";
-        html += "<h3>🎨 Pattern Tests</h3>";
+        html += "<h3>🎮 Pattern Tests & Control</h3>";
+        html += "<div class='grid'>";
+        html += "<button onclick=\"testPattern('solid')\" class='button pattern-btn'>💎 Show Selected Color</button>";
+        html += "<button onclick=\"testPattern('clock')\" class='button test-btn'>🕐 Clock Display</button>";
         html += "<button onclick=\"testPattern('rainbow')\" class='button test-btn'>🌈 Rainbow</button>";
         html += "<button onclick=\"testPattern('breathing')\" class='button test-btn'>💨 Breathing</button>";
-        html += "<button onclick=\"testPattern('solid')\" class='button test-btn'>💎 Solid Color</button>";
-        html += "<button onclick=\"testPattern('clock')\" class='button pattern-btn'>🕐 Clock Display</button>";
         html += "<button onclick=\"testPattern('off')\" class='button'>⚫ Turn Off</button>";
         html += "</div>";
+        html += "<div style='margin-top:15px;'>";
+        html += "<button onclick='saveSettings()' class='button pattern-btn'>💾 Save Settings</button>";
+        html += "</div>";
+        html += "</div>";
+        
     } else {
         html += "<div class='control-group'>";
         html += "<h3>❌ LED Controller Not Available</h3>";
@@ -600,7 +766,7 @@ String WebServerManager::getLEDConfigHTML() {
     return html;
 }
 
-// LED mapping handlers
+// LED mapping handlers (unchanged)
 void WebServerManager::handleLEDMapping() {
     if (!ledController) {
         server.send(500, "text/plain", "LED controller not available");
