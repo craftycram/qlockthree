@@ -37,6 +37,11 @@ public:
     void showError();
     void showStartupAnimation();
     
+    // Status LED functions
+    void setWiFiStatusLED(uint8_t state); // 0=off, 1=connecting, 2=AP mode
+    void setTimeOTAStatusLED(uint8_t state); // 0=off, 1=OTA update, 2=OTA success, 3=OTA error, 4=NTP sync
+    void updateStatusLEDs();
+    
     // Mapping management
     void setMapping(MappingType type);
     void setCustomMapping(const char* mappingId);
@@ -83,6 +88,12 @@ private:
     unsigned long startupAnimationStart;
     uint16_t startupAnimationStep;
     bool startupAnimationComplete;
+    
+    // Status LED state
+    uint8_t wifiStatusState;
+    uint8_t timeOTAStatusState;
+    unsigned long statusLEDUpdate;
+    uint8_t statusLEDStep;
     
     // Pattern implementations
     void updateRainbow();

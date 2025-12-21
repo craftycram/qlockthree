@@ -50,12 +50,16 @@ void setup() {
     Serial.println("Turning off LEDs, continuing setup...");
     ledController.setPattern(LEDPattern::OFF);
     
-    // Initialize WiFi Manager
+    // Initialize WiFi Manager and start connection (non-blocking)
     wifiManager.begin(AP_SSID, AP_PASSWORD, WIFI_TIMEOUT);
     wifiManager.setupWiFi();
     
+    // Set initial WiFi status
+    ledController.setWiFiStatusLED(1); // Connecting - breathing cyan
+    
     // Only setup other services if WiFi is connected
     if (WiFi.status() == WL_CONNECTED) {
+        ledController.setWiFiStatusLED(0); // Connected - turn off status LED
         // Initialize Time Manager
         timeManager.begin();
         
@@ -94,6 +98,7 @@ void setup() {
 void loop() {
     // Handle WiFi Manager (captive portal)
     if (wifiManager.isConfigModeActive()) {
+        ledController.setWiFiStatusLED(2); // AP mode - breathing red
         ledController.showSetupMode();
         ledController.update();
         wifiManager.process();
@@ -101,11 +106,25 @@ void loop() {
     }
     
     // Check WiFi connection
+    static bool wifiConnectionStarted = false;
+    
     if (WiFi.status() != WL_CONNECTED) {
-        Serial.println("WiFi disconnected, attempting reconnection...");
-        ledController.showWiFiConnecting();
-        wifiManager.setupWiFi();
+        if (!wifiConnectionStarted) {
+            Serial.println("WiFi disconnected, attempting reconnection...");
+            ledController.setWiFiStatusLED(1); // Connecting - breathing cyan
+            wifiManager.setupWiFi(); // Start connection attempt
+            wifiConnectionStarted = true;
+        }
+        
+        // Continue updating LEDs while WiFi connects
+        ledController.update();
         return;
+    } else {
+        // WiFi connected - turn off status LED and reset reconnection flag
+        if (wifiConnectionStarted) {
+            ledController.setWiFiStatusLED(0);
+            wifiConnectionStarted = false; // Reset for next disconnection
+        }
     }
     
     // Handle all services
@@ -132,6 +151,7 @@ void loop() {
         // Start clock display only when time is synced
         if (timeManager.isTimeSynced() && !clockStarted) {
             Serial.println("Time synced - starting clock display");
+            ledController.setTimeOTAStatusLED(0); // Turn off NTP sync indicator
             ledController.setPattern(LEDPattern::CLOCK_DISPLAY);
             clockStarted = true;
         }
@@ -146,6 +166,9 @@ void loop() {
             if (ledController.getCurrentPattern() == LEDPattern::CLOCK_DISPLAY) {
                 ledController.showTime(hours, minutes);
             }
+        } else {
+            // Time not synced - show breathing orange
+            ledController.setTimeOTAStatusLED(4);
         }
         
         // Debug: Print current pattern
