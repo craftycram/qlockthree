@@ -2,16 +2,18 @@
 #include "wifi_manager_helper.h"
 #include "auto_updater.h"
 #include "led_controller.h"
+#include "time_manager.h"
 #include "config.h"
 #include <WiFi.h>
 
-WebServerManager::WebServerManager(int port) : server(port), wifiManagerHelper(nullptr), autoUpdater(nullptr), ledController(nullptr) {
+WebServerManager::WebServerManager(int port) : server(port), wifiManagerHelper(nullptr), autoUpdater(nullptr), ledController(nullptr), timeManager(nullptr) {
 }
 
-void WebServerManager::begin(WiFiManagerHelper* wifiHelper, AutoUpdater* updater, LEDController* ledCtrl) {
+void WebServerManager::begin(WiFiManagerHelper* wifiHelper, AutoUpdater* updater, LEDController* ledCtrl, TimeManager* timeMgr) {
     wifiManagerHelper = wifiHelper;
     autoUpdater = updater;
     ledController = ledCtrl;
+    timeManager = timeMgr;
     
     setupRoutes();
     server.begin();
@@ -40,6 +42,13 @@ void WebServerManager::setupRoutes() {
     
     // WiFi reset endpoint
     server.on("/wifi-reset", HTTP_POST, [this]() { handleWiFiReset(); });
+    
+    // Time configuration endpoints
+    server.on("/time", [this]() { handleTimeConfig(); });
+    server.on("/time/status", [this]() { handleTimeStatus(); });
+    server.on("/time/sync", HTTP_POST, [this]() { handleTimeSync(); });
+    server.on("/time/timezone", HTTP_POST, [this]() { handleSetTimezone(); });
+    server.on("/time/ntp", HTTP_POST, [this]() { handleSetNTP(); });
     
     // LED configuration endpoints
     server.on("/led", [this]() { handleLEDConfig(); });
@@ -232,6 +241,7 @@ String WebServerManager::getStatusHTML() {
     html += "<br>";
     html += "<a href='/status' class='button'>JSON Status</a>";
     html += "<a href='/led' class='button'>LED Config</a>";
+    html += "<a href='/time' class='button'>Time Config</a>";
     html += "<a href='javascript:location.reload()' class='button'>Refresh</a>";
     html += "<button onclick='checkUpdate()' class='button check-btn'>Check for Updates</button>";
     html += "<button id='update-btn' onclick='performUpdate()' class='button update-btn' style='display:" + String(updateAvailable ? "inline-block" : "none") + "'>Install Update</button>";
@@ -239,6 +249,192 @@ String WebServerManager::getStatusHTML() {
     html += "</div></body></html>";
     
     return html;
+}
+
+// Time configuration handlers
+void WebServerManager::handleTimeConfig() {
+    server.send(200, "text/html", getTimeConfigHTML());
+}
+
+void WebServerManager::handleTimeStatus() {
+    if (timeManager) {
+        server.send(200, "application/json", timeManager->getStatusJSON());
+    } else {
+        server.send(500, "application/json", "{\"error\":\"Time manager not available\"}");
+    }
+}
+
+void WebServerManager::handleTimeSync() {
+    if (!timeManager) {
+        server.send(500, "text/plain", "Time manager not available");
+        return;
+    }
+    
+    if (timeManager->syncTime()) {
+        server.send(200, "text/plain", "Time synchronized successfully");
+    } else {
+        server.send(500, "text/plain", "Failed to synchronize time");
+    }
+}
+
+void WebServerManager::handleSetTimezone() {
+    if (!timeManager) {
+        server.send(500, "text/plain", "Time manager not available");
+        return;
+    }
+    
+    if (server.hasArg("timezone")) {
+        String timezone = server.arg("timezone");
+        if (timeManager->setTimezoneByName(timezone.c_str())) {
+            server.send(200, "text/plain", "Timezone set to " + timezone);
+        } else {
+            server.send(400, "text/plain", "Invalid timezone: " + timezone);
+        }
+    } else if (server.hasArg("posix")) {
+        String posix = server.arg("posix");
+        timeManager->setTimezone(posix.c_str());
+        server.send(200, "text/plain", "Timezone set to " + posix);
+    } else {
+        server.send(400, "text/plain", "Missing timezone parameter");
+    }
+}
+
+void WebServerManager::handleSetNTP() {
+    if (!timeManager) {
+        server.send(500, "text/plain", "Time manager not available");
+        return;
+    }
+    
+    String ntp1 = server.arg("ntp1");
+    String ntp2 = server.arg("ntp2");
+    String ntp3 = server.arg("ntp3");
+    
+    if (ntp1.length() > 0) {
+        const char* ntp2_ptr = ntp2.length() > 0 ? ntp2.c_str() : nullptr;
+        const char* ntp3_ptr = ntp3.length() > 0 ? ntp3.c_str() : nullptr;
+        
+        timeManager->setNTPServers(ntp1.c_str(), ntp2_ptr, ntp3_ptr);
+        server.send(200, "text/plain", "NTP servers updated");
+    } else {
+        server.send(400, "text/plain", "At least one NTP server is required");
+    }
+}
+
+String WebServerManager::getTimeConfigHTML() {
+    String html = "<!DOCTYPE html><html><head>";
+    html += "<title>QlockThree Time Configuration</title>";
+    html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+    html += "<style>body{font-family:Arial,sans-serif;margin:40px;background:#f0f0f0}";
+    html += ".container{background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}";
+    html += "h1{color:#333;text-align:center}";
+    html += ".control-group{margin:20px 0;padding:15px;background:#f8f9fa;border-radius:5px}";
+    html += ".current-time{background:#d4edda;border-left:4px solid #28a745}";
+    html += "label{display:block;margin-bottom:5px;font-weight:bold}";
+    html += "input,select{width:100%;padding:8px;margin-bottom:10px;border:1px solid #ddd;border-radius:4px}";
+    html += ".button{display:inline-block;padding:10px 20px;margin:5px;background:#007bff;color:white;text-decoration:none;border-radius:4px;border:none;cursor:pointer}";
+    html += ".button:hover{background:#0056b3}";
+    html += ".sync-btn{background:#28a745}.sync-btn:hover{background:#1e7e34}";
+    html += ".info{margin:10px 0;padding:10px;background:#f8f9fa;border-left:4px solid #007bff}</style>";
+    
+    html += "<script>";
+    html += "function syncTime() {";
+    html += "  fetch('/time/sync', {method: 'POST'}).then(r => r.text()).then(data => {";
+    html += "    alert(data);";
+    html += "    setTimeout(() => location.reload(), 1000);";
+    html += "  });";
+    html += "}";
+    html += "function setTimezone() {";
+    html += "  const timezone = document.getElementById('timezone-select').value;";
+    html += "  fetch('/time/timezone', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'timezone=' + timezone}).then(r => r.text()).then(data => {";
+    html += "    alert(data);";
+    html += "    setTimeout(() => location.reload(), 1000);";
+    html += "  });";
+    html += "}";
+    html += "function setNTP() {";
+    html += "  const ntp1 = document.getElementById('ntp1').value;";
+    html += "  const ntp2 = document.getElementById('ntp2').value;";
+    html += "  const ntp3 = document.getElementById('ntp3').value;";
+    html += "  const data = 'ntp1=' + encodeURIComponent(ntp1) + '&ntp2=' + encodeURIComponent(ntp2) + '&ntp3=' + encodeURIComponent(ntp3);";
+    html += "  fetch('/time/ntp', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: data}).then(r => r.text()).then(data => {";
+    html += "    alert(data);";
+    html += "  });";
+    html += "}";
+    html += "</script>";
+    
+    html += "</head><body>";
+    html += "<div class='container'>";
+    html += "<h1>🕐 QlockThree Time Configuration</h1>";
+    
+    if (timeManager) {
+        html += "<div class='control-group current-time'>";
+        html += "<h3>Current Time & Status</h3>";
+        html += "<div class='info'><strong>Current Time:</strong> " + timeManager->getFormattedTime("%H:%M:%S") + "</div>";
+        html += "<div class='info'><strong>Current Date:</strong> " + timeManager->getFormattedDate("%Y-%m-%d") + "</div>";
+        html += "<div class='info'><strong>Timezone:</strong> " + timeManager->getTimezoneString() + "</div>";
+        html += "<div class='info'><strong>Time Synced:</strong> " + String(timeManager->isTimeSynced() ? "Yes" : "No") + "</div>";
+        html += "<div class='info'><strong>DST Active:</strong> " + String(timeManager->isDST() ? "Yes" : "No") + "</div>";
+        html += "<div class='info'><strong>Timezone Offset:</strong> UTC" + String(timeManager->getTimezoneOffset() >= 0 ? "+" : "") + String(timeManager->getTimezoneOffset()) + "</div>";
+        html += "</div>";
+        
+        html += "<div class='control-group'>";
+        html += "<h3>🌍 Timezone Configuration</h3>";
+        html += "<label for='timezone-select'>Select Timezone:</label>";
+        html += "<select id='timezone-select'>";
+        html += "<option value='UTC'>UTC (Coordinated Universal Time)</option>";
+        html += "<option value='CET' selected>CET (Central European Time)</option>";
+        html += "<option value='EET'>EET (Eastern European Time)</option>";
+        html += "<option value='WET'>WET (Western European Time)</option>";
+        html += "<option value='EST'>EST (Eastern Standard Time)</option>";
+        html += "<option value='CST'>CST (Central Standard Time)</option>";
+        html += "<option value='MST'>MST (Mountain Standard Time)</option>";
+        html += "<option value='PST'>PST (Pacific Standard Time)</option>";
+        html += "<option value='JST'>JST (Japan Standard Time)</option>";
+        html += "<option value='AEST'>AEST (Australian Eastern Time)</option>";
+        html += "<option value='IST'>IST (India Standard Time)</option>";
+        html += "<option value='CST_CN'>CST (China Standard Time)</option>";
+        html += "<option value='MSK'>MSK (Moscow Time)</option>";
+        html += "<option value='GST'>GST (Gulf Standard Time)</option>";
+        html += "</select>";
+        html += "<button onclick='setTimezone()' class='button'>Set Timezone</button>";
+        html += "</div>";
+        
+        html += "<div class='control-group'>";
+        html += "<h3>🌐 NTP Server Configuration</h3>";
+        html += "<label for='ntp1'>Primary NTP Server:</label>";
+        html += "<input type='text' id='ntp1' value='pool.ntp.org' placeholder='pool.ntp.org'>";
+        html += "<label for='ntp2'>Secondary NTP Server:</label>";
+        html += "<input type='text' id='ntp2' value='time.nist.gov' placeholder='time.nist.gov'>";
+        html += "<label for='ntp3'>Tertiary NTP Server:</label>";
+        html += "<input type='text' id='ntp3' value='de.pool.ntp.org' placeholder='de.pool.ntp.org'>";
+        html += "<button onclick='setNTP()' class='button'>Update NTP Servers</button>";
+        html += "</div>";
+        
+        html += "<div class='control-group'>";
+        html += "<h3>🔄 Time Synchronization</h3>";
+        html += "<p>Force synchronization with NTP servers to ensure accurate time.</p>";
+        html += "<button onclick='syncTime()' class='button sync-btn'>Sync Time Now</button>";
+        html += "</div>";
+    } else {
+        html += "<div class='control-group'>";
+        html += "<h3>❌ Time Manager Not Available</h3>";
+        html += "<p>Time manager is not initialized. Check system configuration.</p>";
+        html += "</div>";
+    }
+    
+    html += "<br>";
+    html += "<a href='/' class='button'>← Back to Status</a>";
+    html += "<a href='/time/status' class='button'>📊 JSON Status</a>";
+    html += "</div></body></html>";
+    
+    return html;
+}
+
+String WebServerManager::getTimeStatusJSON() {
+    if (timeManager) {
+        return timeManager->getStatusJSON();
+    } else {
+        return "{\"error\":\"Time manager not available\"}";
+    }
 }
 
 // LED configuration handlers

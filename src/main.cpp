@@ -6,6 +6,7 @@
 #include "auto_updater.h"
 #include "web_server_manager.h"
 #include "led_controller.h"
+#include "time_manager.h"
 
 // Create module instances
 WiFiManagerHelper wifiManager;
@@ -13,6 +14,7 @@ OTAManager otaManager;
 AutoUpdater autoUpdater;
 WebServerManager webServer(WEB_SERVER_PORT);
 LEDController ledController;
+TimeManager timeManager;
 
 // Custom function for application-specific code
 int myFunction(int x, int y) {
@@ -41,6 +43,9 @@ void setup() {
         ledController.setPattern(LEDPattern::SOLID_COLOR);
         delay(1000);
         
+        // Initialize Time Manager
+        timeManager.begin();
+        
         // Initialize OTA Manager
         otaManager.begin(OTA_HOSTNAME);
         // Optional: otaManager.begin(OTA_HOSTNAME, OTA_PASSWORD);
@@ -48,8 +53,8 @@ void setup() {
         // Initialize Auto Updater
         autoUpdater.begin("craftycram/qlockthree", CURRENT_VERSION, UPDATE_CHECK_INTERVAL);
         
-        // Initialize Web Server
-        webServer.begin(&wifiManager, &autoUpdater, &ledController);
+        // Initialize Web Server with TimeManager
+        webServer.begin(&wifiManager, &autoUpdater, &ledController, &timeManager);
         
         // Initial update check (show update mode during check)
         if (autoUpdater.isUpdateAvailable()) {
@@ -104,21 +109,40 @@ void loop() {
     // Update LED animations
     ledController.update();
     
-    // QlockThree main functionality - show current time
+    // QlockThree main functionality - show current time using TimeManager
     static unsigned long lastTimeUpdate = 0;
     if (millis() - lastTimeUpdate > 1000) { // Update time display every second
         lastTimeUpdate = millis();
         
-        // Get current time (you might want to add NTP time sync later)
-        // For now, using millis() to simulate time
-        unsigned long totalSeconds = millis() / 1000;
-        int hours = (totalSeconds / 3600) % 24;
-        int minutes = (totalSeconds / 60) % 60;
-        
-        // Show time on QlockThree LEDs
-        if (ledController.getCurrentPattern() == LEDPattern::CLOCK_DISPLAY) {
-            ledController.showTime(hours, minutes);
+        // Get accurate time from TimeManager
+        if (timeManager.isTimeSynced()) {
+            struct tm currentTime = timeManager.getCurrentTime();
+            int hours = currentTime.tm_hour;
+            int minutes = currentTime.tm_min;
+            
+            // Show time on QlockThree LEDs
+            if (ledController.getCurrentPattern() == LEDPattern::CLOCK_DISPLAY) {
+                ledController.showTime(hours, minutes);
+            }
+        } else {
+            // Fallback to system time if NTP not synced yet
+            unsigned long totalSeconds = millis() / 1000;
+            int hours = (totalSeconds / 3600) % 24;
+            int minutes = (totalSeconds / 60) % 60;
+            
+            // Show time on QlockThree LEDs
+            if (ledController.getCurrentPattern() == LEDPattern::CLOCK_DISPLAY) {
+                ledController.showTime(hours, minutes);
+            }
         }
+    }
+    
+    // Periodic time sync check (every 5 minutes if not synced)
+    static unsigned long lastSyncCheck = 0;
+    if (!timeManager.isTimeSynced() && (millis() - lastSyncCheck > 300000)) { // 5 minutes
+        lastSyncCheck = millis();
+        Serial.println("Attempting time synchronization...");
+        timeManager.syncTime();
     }
     
     // Add your additional QlockThree features here:

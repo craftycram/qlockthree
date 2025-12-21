@@ -8,11 +8,12 @@
 class WiFiManagerHelper;
 class AutoUpdater;
 class LEDController;
+class TimeManager;
 
 class WebServerManager {
 public:
     WebServerManager(int port = 80);
-    void begin(WiFiManagerHelper* wifiHelper, AutoUpdater* updater, LEDController* ledController = nullptr);
+    void begin(WiFiManagerHelper* wifiHelper, AutoUpdater* updater, LEDController* ledController = nullptr, TimeManager* timeManager = nullptr);
     void handleClient();
     
 private:
@@ -20,6 +21,7 @@ private:
     WiFiManagerHelper* wifiManagerHelper;
     AutoUpdater* autoUpdater;
     LEDController* ledController;
+    TimeManager* timeManager;
     
     void setupRoutes();
     
@@ -29,6 +31,13 @@ private:
     void handleCheckUpdate();
     void handleManualUpdate();
     void handleWiFiReset();
+    
+    // Time configuration handlers
+    void handleTimeConfig();
+    void handleTimeStatus();
+    void handleTimeSync();
+    void handleSetTimezone();
+    void handleSetNTP();
     
     // LED configuration handlers
     void handleLEDStatus();
@@ -43,6 +52,8 @@ private:
     String getStatusJSON();
     String getLEDConfigHTML();
     String getLEDStatusJSON();
+    String getTimeConfigHTML();
+    String getTimeStatusJSON();
 };
 
 #endif // WEB_SERVER_MANAGER_H
