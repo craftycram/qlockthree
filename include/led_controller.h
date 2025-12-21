@@ -4,6 +4,9 @@
 #include <FastLED.h>
 #include <Preferences.h>
 #include "led_mapping_manager.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/semphr.h>
 
 // QlockThree LED patterns and animations
 enum class LEDPattern {
@@ -40,7 +43,9 @@ public:
     // Status LED functions
     void setWiFiStatusLED(uint8_t state); // 0=off, 1=connecting, 2=AP mode
     void setTimeOTAStatusLED(uint8_t state); // 0=off, 1=OTA update, 2=OTA success, 3=OTA error, 4=NTP sync
+    void setUpdateStatusLED(uint8_t state); // 0=off, 1=checking, 2=downloading, 3=update success, 4=update error
     void updateStatusLEDs();
+    void setStatusLEDsEnabled(bool enabled); // Enable/disable status LED system
     
     // Mapping management
     void setMapping(MappingType type);
@@ -52,6 +57,10 @@ public:
     void fill(CRGB color);
     void setPixel(int index, CRGB color);
     CRGB getPixel(int index);
+    
+    // Thread-safe utility functions
+    void setPixelThreadSafe(int index, CRGB color);
+    void showThreadSafe();
     
     // Configuration management
     void loadSettings();
@@ -92,8 +101,19 @@ private:
     // Status LED state
     uint8_t wifiStatusState;
     uint8_t timeOTAStatusState;
+    uint8_t updateStatusState;
     unsigned long statusLEDUpdate;
     uint8_t statusLEDStep;
+    bool statusLEDsEnabled;
+    
+    // FreeRTOS task management
+    TaskHandle_t ledTaskHandle;
+    SemaphoreHandle_t ledMutex;
+    bool taskRunning;
+    
+    // Static task function
+    static void ledTaskFunction(void* parameter);
+    void ledTaskLoop();
     
     // Pattern implementations
     void updateRainbow();

@@ -179,8 +179,8 @@ void loop() {
         Serial.println("Time synced - starting initial update check...");
         ledController.setUpdateStatusLED(1); // Blue breathing - checking for updates
         
-        // Perform the update check
-        autoUpdater.checkForUpdates();
+        // Force the update check (ignore interval for initial check)
+        autoUpdater.checkForUpdates(true);
         
         // Get version information after check
         String latestVersion = autoUpdater.getLatestVersion();

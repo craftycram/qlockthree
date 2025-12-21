@@ -10,6 +10,7 @@ public:
     AutoUpdater();
     void begin(const char* githubRepo, const char* currentVersion, unsigned long checkInterval);
     void checkForUpdates();
+    void checkForUpdates(bool force);
     bool isUpdateAvailable() const { return updateAvailable; }
     String getLatestVersion() const { return latestVersion; }
     String getDownloadUrl() const { return downloadUrl; }

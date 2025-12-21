@@ -15,87 +15,128 @@ void AutoUpdater::begin(const char* githubRepo, const char* currentVersion, unsi
 }
 
 void AutoUpdater::checkForUpdates() {
+    checkForUpdates(false); // Call with force=false by default
+}
+
+void AutoUpdater::checkForUpdates(bool force) {
     if (WiFi.status() != WL_CONNECTED) {
-        Serial.println("WiFi not connected, skipping update check");
+        Serial.println("AUTO UPDATE DEBUG: WiFi not connected, skipping update check");
         return;
     }
     
-    // Check if enough time has passed
-    if (millis() - lastUpdateCheck < updateCheckInterval) {
+    // Check if enough time has passed (unless forced)
+    if (!force && millis() - lastUpdateCheck < updateCheckInterval) {
+        Serial.printf("AUTO UPDATE DEBUG: Update check interval not reached (last check %lu ms ago), skipping\n", 
+                     millis() - lastUpdateCheck);
         return;
     }
     
-    Serial.println("Checking for updates...");
+    Serial.println("AUTO UPDATE DEBUG: Starting update check...");
+    Serial.printf("AUTO UPDATE DEBUG: GitHub URL: %s\n", githubUpdateUrl.c_str());
     lastUpdateCheck = millis();
     
     WiFiClientSecure client;
     client.setInsecure(); // Skip SSL certificate verification for GitHub API
     
     HTTPClient http;
-    http.begin(client, githubUpdateUrl);
+    bool beginSuccess = http.begin(client, githubUpdateUrl);
+    if (!beginSuccess) {
+        Serial.println("AUTO UPDATE DEBUG: Failed to begin HTTP client");
+        return;
+    }
+    
     http.addHeader("User-Agent", "QlockThree-ESP32");
     http.setTimeout(15000); // 15 second timeout
     
+    Serial.println("AUTO UPDATE DEBUG: Sending HTTP GET request...");
     int httpCode = http.GET();
+    Serial.printf("AUTO UPDATE DEBUG: HTTP response code: %d\n", httpCode);
     
     if (httpCode == HTTP_CODE_OK) {
         String payload = http.getString();
+        Serial.printf("AUTO UPDATE DEBUG: Payload length: %d bytes\n", payload.length());
+        
+        if (payload.length() > 100) {
+            Serial.printf("AUTO UPDATE DEBUG: Payload preview: %s...\n", payload.substring(0, 100).c_str());
+        }
         
         // Parse JSON response
         JsonDocument doc;
         DeserializationError error = deserializeJson(doc, payload);
         
         if (!error) {
-            latestVersion = doc["tag_name"].as<String>();
+            Serial.println("AUTO UPDATE DEBUG: JSON parsed successfully");
             
-            // Remove 'v' prefix if present
-            if (latestVersion.startsWith("v")) {
-                latestVersion = latestVersion.substring(1);
-            }
-            
-            Serial.print("Latest version: ");
-            Serial.println(latestVersion);
-            Serial.print("Current version: ");
-            Serial.println(currentVersion);
-            
-            // Compare versions
-            String comparison = compareVersions(currentVersion, latestVersion);
-            
-            if (comparison == "outdated") {
-                updateAvailable = true;
+            if (doc.containsKey("tag_name")) {
+                latestVersion = doc["tag_name"].as<String>();
+                Serial.printf("AUTO UPDATE DEBUG: Found tag_name: %s\n", latestVersion.c_str());
                 
-                // Find download URL for main firmware binary (not bootloader or partitions)
-                JsonArray assets = doc["assets"];
-                downloadUrl = "";
-                for (JsonObject asset : assets) {
-                    String name = asset["name"].as<String>();
-                    // Look specifically for the main firmware file, not bootloader or partitions
-                    if (name.startsWith("qlockthree-esp32c3-") && name.endsWith(".bin") && 
-                        name.indexOf("complete") == -1 && name.indexOf("bootloader") == -1 && name.indexOf("partition") == -1) {
-                        downloadUrl = asset["browser_download_url"].as<String>();
-                        break;
-                    }
+                // Remove 'v' prefix if present
+                if (latestVersion.startsWith("v")) {
+                    latestVersion = latestVersion.substring(1);
+                    Serial.printf("AUTO UPDATE DEBUG: Removed 'v' prefix, version now: %s\n", latestVersion.c_str());
                 }
                 
-                if (downloadUrl.length() > 0) {
-                    Serial.println("Update available! Download URL: " + downloadUrl);
+                Serial.print("Latest version: ");
+                Serial.println(latestVersion);
+                Serial.print("Current version: ");
+                Serial.println(currentVersion);
+                
+                // Compare versions
+                String comparison = compareVersions(currentVersion, latestVersion);
+                Serial.printf("AUTO UPDATE DEBUG: Version comparison result: %s\n", comparison.c_str());
+                
+                if (comparison == "outdated") {
+                    updateAvailable = true;
+                    Serial.println("AUTO UPDATE DEBUG: Update available, looking for assets...");
                     
-                    // Automatically perform update
-                    performUpdate();
+                    // Find download URL for main firmware binary (not bootloader or partitions)
+                    JsonArray assets = doc["assets"];
+                    Serial.printf("AUTO UPDATE DEBUG: Found %d assets\n", assets.size());
+                    
+                    downloadUrl = "";
+                    for (JsonObject asset : assets) {
+                        String name = asset["name"].as<String>();
+                        Serial.printf("AUTO UPDATE DEBUG: Asset: %s\n", name.c_str());
+                        
+                        // Look specifically for the main firmware file, not bootloader or partitions
+                        if (name.startsWith("qlockthree-esp32c3-") && name.endsWith(".bin") && 
+                            name.indexOf("complete") == -1 && name.indexOf("bootloader") == -1 && name.indexOf("partition") == -1) {
+                            downloadUrl = asset["browser_download_url"].as<String>();
+                            Serial.printf("AUTO UPDATE DEBUG: Found firmware binary: %s\n", downloadUrl.c_str());
+                            break;
+                        }
+                    }
+                    
+                    if (downloadUrl.length() > 0) {
+                        Serial.println("Update available! Download URL: " + downloadUrl);
+                        
+                        // Automatically perform update
+                        performUpdate();
+                    } else {
+                        Serial.println("AUTO UPDATE DEBUG: No suitable firmware file found in assets");
+                        updateAvailable = false;
+                    }
+                    
                 } else {
-                    Serial.println("Update available but no suitable firmware file found");
                     updateAvailable = false;
+                    Serial.println("Firmware is up to date");
                 }
-                
             } else {
-                updateAvailable = false;
-                Serial.println("Firmware is up to date");
+                Serial.println("AUTO UPDATE DEBUG: No 'tag_name' field found in JSON response");
             }
         } else {
-            Serial.println("Failed to parse JSON response");
+            Serial.printf("AUTO UPDATE DEBUG: Failed to parse JSON response: %s\n", error.c_str());
+            Serial.printf("AUTO UPDATE DEBUG: Raw payload: %s\n", payload.c_str());
+        }
+    } else if (httpCode > 0) {
+        Serial.printf("AUTO UPDATE DEBUG: HTTP GET failed with code: %d\n", httpCode);
+        String errorPayload = http.getString();
+        if (errorPayload.length() > 0) {
+            Serial.printf("AUTO UPDATE DEBUG: Error response: %s\n", errorPayload.c_str());
         }
     } else {
-        Serial.printf("HTTP GET failed with code: %d\n", httpCode);
+        Serial.printf("AUTO UPDATE DEBUG: HTTP request failed: %s\n", http.errorToString(httpCode).c_str());
     }
     
     http.end();

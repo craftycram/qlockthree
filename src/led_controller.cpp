@@ -263,7 +263,7 @@ void LEDController::showWiFiConnecting() {
     // Pulsing blue pattern
     clear();
     for (int i = 0; i < numLeds; i += 4) {
-        leds[i] = CRGB::Blue;
+        leds[i] = CRGB::Cyan;
     }
     FastLED.show();
 }
@@ -713,7 +713,7 @@ void LEDController::updateStatusLEDs() {
                 if (updateStatusState == 1) {
                     // Breathing blue while checking for updates
                     uint8_t brightness = beatsin8(30); // 30 BPM breathing
-                    leds[statusLEDIndex] = CRGB::Blue;
+                    leds[statusLEDIndex] = CRGB::Cyan;
                     leds[statusLEDIndex].fadeToBlackBy(255 - brightness);
                 } else if (updateStatusState == 2) {
                     // Breathing purple while downloading update
