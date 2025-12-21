@@ -29,7 +29,14 @@ void setup() {
     
     // Initialize Serial Monitor after LED controller threading is ready
     Serial.begin(115200);
+    delay(1000); // Allow serial to initialize
+    
     Serial.println("Starting QlockThree with modular architecture...");
+    
+    // Print startup memory info
+    Serial.printf("Startup free heap: %d bytes\n", ESP.getFreeHeap());
+    Serial.printf("Chip model: %s\n", ESP.getChipModel());
+    Serial.printf("CPU frequency: %d MHz\n", ESP.getCpuFreqMHz());
     
     // Show beautiful startup animation (rainbow sweep for 1 second)
     Serial.println("Starting rainbow startup animation...");
@@ -132,7 +139,25 @@ void loop() {
     
     if (inAPMode) {
         ledController.setWiFiStatusLED(2); // AP mode - breathing red
-        wifiManager.process();
+        
+        // Monitor memory during WiFi config portal
+        static unsigned long lastMemCheck = 0;
+        if (millis() - lastMemCheck > 10000) { // Every 10 seconds
+            lastMemCheck = millis();
+            size_t freeHeap = ESP.getFreeHeap();
+            if (freeHeap < 15000) {
+                Serial.printf("WARNING: Low heap during config portal: %d bytes\n", freeHeap);
+            }
+        }
+        
+        // Process WiFiManager with error handling
+        try {
+            wifiManager.process();
+        } catch (...) {
+            Serial.println("ERROR: Exception in WiFiManager::process() - restarting portal");
+            delay(1000);
+            ESP.restart(); // Restart to recover from WiFiManager crash
+        }
         return;
     }
     
