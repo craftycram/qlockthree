@@ -36,8 +36,8 @@ void LEDController::begin(int pin, int numLedsCount, int brightnessValue) {
     brightness = preferences.getUChar("brightness", brightnessValue);
     speed = preferences.getUChar("speed", 50);
     
-    // Load saved color (default to white)
-    uint32_t savedColor = preferences.getUInt("solid_color", 0xFFFFFF);
+    // Load saved color (default to neutral warm white)
+    uint32_t savedColor = preferences.getUInt("solid_color", 0xFFDCB4);  // RGB(255, 220, 180)
     solidColor = CRGB(
         (savedColor >> 16) & 0xFF,  // Red
         (savedColor >> 8) & 0xFF,   // Green
@@ -137,7 +137,7 @@ void LEDController::update() {
             break;
             
         case LEDPattern::CLOCK_DISPLAY:
-            updateClockDisplay();
+            // Clock display is handled by showTime() method
             break;
             
         case LEDPattern::SETUP_MODE:
@@ -346,10 +346,6 @@ void LEDController::updateBreathing() {
     }
 }
 
-void LEDController::updateClockDisplay() {
-    // For QlockThree, this would update based on current time
-    // This is a placeholder - implement your specific word clock logic here
-}
 
 void LEDController::updateSetupMode() {
     // Rotating blue/white pattern for setup mode
@@ -461,54 +457,6 @@ void LEDController::ledTaskLoop() {
     vTaskDelete(nullptr);
 }
 
-// QlockThree specific word mapping functions
-void LEDController::illuminateWord(int startLed, int length) {
-    for (int i = 0; i < length; i++) {
-        if (startLed + i < numLeds) {
-            leds[startLed + i] = solidColor;
-        }
-    }
-}
-
-void LEDController::showHour(int hour) {
-    // Example word mapping for hours - customize for your QlockThree layout
-    // This is a simplified example - you'd map to actual LED positions
-    hour = hour % 12; // Convert to 12-hour format
-    
-    switch (hour) {
-        case 0: case 12: illuminateWord(0, 4); break;   // "ZWÖLF" or "TWELVE"
-        case 1: illuminateWord(4, 4); break;            // "EINS" or "ONE"
-        case 2: illuminateWord(8, 4); break;            // "ZWEI" or "TWO"
-        case 3: illuminateWord(12, 4); break;           // "DREI" or "THREE"
-        case 4: illuminateWord(16, 4); break;           // "VIER" or "FOUR"
-        case 5: illuminateWord(20, 4); break;           // "FÜNF" or "FIVE"
-        case 6: illuminateWord(24, 5); break;           // "SECHS" or "SIX"
-        case 7: illuminateWord(29, 6); break;           // "SIEBEN" or "SEVEN"
-        case 8: illuminateWord(35, 4); break;           // "ACHT" or "EIGHT"
-        case 9: illuminateWord(39, 4); break;           // "NEUN" or "NINE"
-        case 10: illuminateWord(43, 4); break;          // "ZEHN" or "TEN"
-        case 11: illuminateWord(47, 3); break;          // "ELF" or "ELEVEN"
-    }
-}
-
-void LEDController::showMinute(int minute) {
-    // Example minute mapping - customize for your QlockThree layout
-    if (minute >= 5 && minute < 10) {
-        illuminateWord(50, 4); // "FÜNF" past
-    } else if (minute >= 10 && minute < 15) {
-        illuminateWord(54, 4); // "ZEHN" past
-    } else if (minute >= 15 && minute < 20) {
-        illuminateWord(58, 7); // "VIERTEL" past
-    } else if (minute >= 20 && minute < 25) {
-        illuminateWord(65, 7); // "ZWANZIG" past
-    } else if (minute >= 25 && minute < 30) {
-        illuminateWord(50, 4); // "FÜNF" before half
-        illuminateWord(72, 4); // "HALB"
-    } else if (minute >= 30 && minute < 35) {
-        illuminateWord(72, 4); // "HALB"
-    }
-    // Add more minute mappings as needed
-}
 
 // Configuration management functions
 void LEDController::loadSettings() {

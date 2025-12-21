@@ -118,15 +118,10 @@ private:
     // Pattern implementations
     void updateRainbow();
     void updateBreathing();
-    void updateClockDisplay();
     void updateSetupMode();
     void updateUpdateMode();
     void updateStartupAnimation();
     
-    // QlockThree word mapping (example for German)
-    void illuminateWord(int startLed, int length);
-    void showHour(int hour);
-    void showMinute(int minute);
 };
 
 #endif // LED_CONTROLLER_H

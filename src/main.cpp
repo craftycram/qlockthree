@@ -16,12 +16,6 @@ WebServerManager webServer(WEB_SERVER_PORT);
 LEDController ledController;
 TimeManager timeManager;
 
-// Custom function for application-specific code
-int myFunction(int x, int y) {
-    // Your custom function implementation
-    return x + y;
-}
-
 void setup() {
     // Initialize LED Controller FIRST to ensure threading starts immediately
     ledController.begin(LED_DATA_PIN, LED_NUM_LEDS, LED_BRIGHTNESS);
