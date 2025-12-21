@@ -373,7 +373,7 @@ void LEDController::updateStartupAnimation() {
     
     // Animation duration: 1.2 seconds for full sequence + 1 second display time
     const unsigned long animationDuration = 1200; // Increased to ensure 100% completion
-    const unsigned long displayDuration = 250;   // Additional time to display full animation
+    const unsigned long displayDuration = 500;   // Additional time to display full animation
     const unsigned long totalDuration = animationDuration + displayDuration; // 2.2 seconds total
     
     if (elapsed >= totalDuration) {
@@ -388,8 +388,8 @@ void LEDController::updateStartupAnimation() {
     // Check if we're in the display phase (animation completed but showing result)
     if (elapsed >= animationDuration) {
         // Animation complete, just display the full rainbow - don't clear or update LEDs
-        Serial.printf("STARTUP DEBUG: Display phase - elapsed=%lu, showing complete rainbow\n", elapsed);
-        return;
+        Serial.printf("STARTUP DEBUG: Display phase - elapsed=%lu, showing complete rainbow, mode %d\n", elapsed, currentPattern);
+        // return;
     }
     
     // Clear all LEDs first

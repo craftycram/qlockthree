@@ -103,8 +103,6 @@ static const uint8_t STARTUP_SEQUENCE[] = {
     23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13,
     // 11th row: indices 1-11
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-    // Status LEDs repeated at end for rainbow effect
-    10, 11
 };
 
 #define STARTUP_SEQUENCE_LENGTH (sizeof(STARTUP_SEQUENCE) / sizeof(STARTUP_SEQUENCE[0]))
