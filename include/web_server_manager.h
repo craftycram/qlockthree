@@ -35,6 +35,8 @@ private:
     void handleLEDConfig();
     void handleLEDTest();
     void handleLEDPattern();
+    void handleLEDMapping();
+    void handleSetLEDMapping();
     
     // HTML/JSON generators
     String getStatusHTML();

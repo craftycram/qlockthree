@@ -2,6 +2,7 @@
 
 LEDController::LEDController() : 
     leds(nullptr), 
+    ledStates(nullptr),
     numLeds(0), 
     dataPin(0), 
     brightness(128), 
@@ -37,8 +38,12 @@ void LEDController::begin(int pin, int numLedsCount, int brightnessValue) {
     Serial.printf("- Brightness: %d\n", brightness);
     Serial.printf("- Speed: %d\n", speed);
     
-    // Allocate LED array
+    // Allocate LED arrays
     leds = new CRGB[numLeds];
+    ledStates = new bool[numLeds];
+    
+    // Initialize mapping manager
+    mappingManager.begin();
     
     // Initialize FastLED
     FastLED.addLeds<WS2812, 0>(leds, numLeds).setCorrection(TypicalLEDStrip);
@@ -52,6 +57,7 @@ void LEDController::begin(int pin, int numLedsCount, int brightnessValue) {
     Serial.printf("- Pin: %d\n", dataPin);
     Serial.printf("- LEDs: %d\n", numLeds);
     Serial.printf("- Brightness: %d\n", brightness);
+    Serial.printf("- Mapping: %s\n", mappingManager.getCurrentMappingName());
 }
 
 void LEDController::update() {
@@ -150,9 +156,17 @@ void LEDController::showTime(int hours, int minutes) {
     setPattern(LEDPattern::CLOCK_DISPLAY);
     clear();
     
-    // This is a basic example - you'd customize this for your specific QlockThree layout
-    showHour(hours);
-    showMinute(minutes);
+    // Use mapping manager to calculate time display
+    mappingManager.calculateTimeDisplay((uint8_t)hours, (uint8_t)minutes, ledStates);
+    
+    // Apply LED states to actual LEDs
+    for (int i = 0; i < numLeds; i++) {
+        if (ledStates[i]) {
+            leds[i] = solidColor;
+        } else {
+            leds[i] = CRGB::Black;
+        }
+    }
     
     FastLED.show();
 }
@@ -380,4 +394,31 @@ void LEDController::setDataPin(int pin) {
         Serial.printf("LED data pin changed to: %d (restart required)\n", dataPin);
         saveSettings();
     }
+}
+
+// Mapping management functions
+void LEDController::setMapping(MappingType type) {
+    mappingManager.loadMapping(type);
+    mappingManager.saveCurrentMapping();
+    
+    // Update LED count if mapping specifies different count
+    uint16_t mappingLEDCount = mappingManager.getCurrentMappingLEDCount();
+    if (mappingLEDCount != numLeds) {
+        setNumLeds(mappingLEDCount);
+    }
+    
+    Serial.printf("LED mapping changed to: %s\n", mappingManager.getCurrentMappingName());
+}
+
+void LEDController::setCustomMapping(const char* mappingId) {
+    mappingManager.setCustomMapping(mappingId);
+    mappingManager.saveCurrentMapping();
+    
+    // Update LED count if mapping specifies different count
+    uint16_t mappingLEDCount = mappingManager.getCurrentMappingLEDCount();
+    if (mappingLEDCount != numLeds) {
+        setNumLeds(mappingLEDCount);
+    }
+    
+    Serial.printf("LED mapping changed to custom: %s\n", mappingManager.getCurrentMappingName());
 }

@@ -46,6 +46,8 @@ void WebServerManager::setupRoutes() {
     server.on("/led/status", [this]() { handleLEDStatus(); });
     server.on("/led/test", HTTP_POST, [this]() { handleLEDTest(); });
     server.on("/led/pattern", HTTP_POST, [this]() { handleLEDPattern(); });
+    server.on("/led/mapping", [this]() { handleLEDMapping(); });
+    server.on("/led/mapping/set", HTTP_POST, [this]() { handleSetLEDMapping(); });
     server.on("/led/config", HTTP_POST, [this]() { 
         // Handle LED configuration updates
         if (!ledController) {
@@ -396,7 +398,116 @@ String WebServerManager::getLEDConfigHTML() {
     html += "<br>";
     html += "<a href='/' class='button'>← Back to Status</a>";
     html += "<a href='/led/status' class='button'>📊 JSON Status</a>";
+    html += "<a href='/led/mapping' class='button'>🗺️ LED Mapping</a>";
     html += "</div></body></html>";
     
     return html;
+}
+
+// LED mapping handlers
+void WebServerManager::handleLEDMapping() {
+    if (!ledController) {
+        server.send(500, "text/plain", "LED controller not available");
+        return;
+    }
+    
+    String html = "<!DOCTYPE html><html><head>";
+    html += "<title>QlockThree LED Mapping</title>";
+    html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+    html += "<style>body{font-family:Arial,sans-serif;margin:40px;background:#f0f0f0}";
+    html += ".container{background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}";
+    html += "h1{color:#333;text-align:center}";
+    html += ".mapping-group{margin:20px 0;padding:15px;background:#f8f9fa;border-radius:5px}";
+    html += ".current-mapping{background:#d4edda;border-left:4px solid #28a745}";
+    html += "label{display:block;margin-bottom:5px;font-weight:bold}";
+    html += "select{width:100%;padding:8px;margin-bottom:10px;border:1px solid #ddd;border-radius:4px}";
+    html += ".button{display:inline-block;padding:10px 20px;margin:5px;background:#007bff;color:white;text-decoration:none;border-radius:4px;border:none;cursor:pointer}";
+    html += ".button:hover{background:#0056b3}";
+    html += ".mapping-btn{background:#28a745}.mapping-btn:hover{background:#1e7e34}";
+    html += ".info{margin:10px 0;padding:10px;background:#f8f9fa;border-left:4px solid #007bff}</style>";
+    
+    html += "<script>";
+    html += "function setMapping() {";
+    html += "  const mappingType = document.getElementById('mapping-select').value;";
+    html += "  if (confirm('Change LED mapping to ' + document.getElementById('mapping-select').selectedOptions[0].text + '?')) {";
+    html += "    fetch('/led/mapping/set', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'type=' + mappingType});";
+    html += "    setTimeout(() => location.reload(), 1000);";
+    html += "  }";
+    html += "}";
+    html += "</script>";
+    
+    html += "</head><body>";
+    html += "<div class='container'>";
+    html += "<h1>🗺️ QlockThree LED Mapping</h1>";
+    
+    // Current mapping info
+    LEDMappingManager* mappingManager = ledController->getMappingManager();
+    if (mappingManager) {
+        html += "<div class='mapping-group current-mapping'>";
+        html += "<h3>Current Mapping</h3>";
+        html += "<div class='info'><strong>Name:</strong> " + String(mappingManager->getCurrentMappingName()) + "</div>";
+        html += "<div class='info'><strong>ID:</strong> " + String(mappingManager->getCurrentMappingId()) + "</div>";
+        html += "<div class='info'><strong>Description:</strong> " + String(mappingManager->getCurrentMappingDescription()) + "</div>";
+        html += "<div class='info'><strong>LED Count:</strong> " + String(mappingManager->getCurrentMappingLEDCount()) + "</div>";
+        html += "</div>";
+        
+        // Mapping selection
+        html += "<div class='mapping-group'>";
+        html += "<h3>Select LED Mapping</h3>";
+        html += "<label for='mapping-select'>Available Mappings:</label>";
+        html += "<select id='mapping-select'>";
+        html += "<option value='0'" + String(mappingManager->getCurrentMappingType() == MappingType::MAPPING_45_GERMAN ? " selected" : "") + ">45-LED German Layout</option>";
+        html += "<option value='1'" + String(mappingManager->getCurrentMappingType() == MappingType::MAPPING_110_GERMAN ? " selected" : "") + ">110-LED German Layout</option>";
+        html += "</select>";
+        html += "<button onclick='setMapping()' class='button mapping-btn'>Apply Mapping</button>";
+        html += "</div>";
+        
+        html += "<div class='mapping-group'>";
+        html += "<h3>ℹ️ Mapping Information</h3>";
+        html += "<p><strong>45-LED German Layout:</strong> Compact design with 45 LEDs arranged in a smaller grid. Perfect for space-constrained installations.</p>";
+        html += "<p><strong>110-LED German Layout:</strong> Standard 11×10 grid layout providing full German word clock functionality with all time expressions.</p>";
+        html += "<p><strong>Note:</strong> Changing the mapping will automatically adjust the LED count to match the selected layout.</p>";
+        html += "</div>";
+    } else {
+        html += "<div class='mapping-group'>";
+        html += "<h3>❌ Mapping Manager Not Available</h3>";
+        html += "<p>LED mapping manager is not initialized.</p>";
+        html += "</div>";
+    }
+    
+    html += "<br>";
+    html += "<a href='/led' class='button'>← Back to LED Config</a>";
+    html += "<a href='/' class='button'>🏠 Home</a>";
+    html += "</div></body></html>";
+    
+    server.send(200, "text/html", html);
+}
+
+void WebServerManager::handleSetLEDMapping() {
+    if (!ledController) {
+        server.send(500, "text/plain", "LED controller not available");
+        return;
+    }
+    
+    if (server.hasArg("type")) {
+        int mappingType = server.arg("type").toInt();
+        
+        switch (mappingType) {
+            case 0:
+                ledController->setMapping(MappingType::MAPPING_45_GERMAN);
+                server.send(200, "text/plain", "Mapping changed to 45-LED German Layout");
+                break;
+            case 1:
+                ledController->setMapping(MappingType::MAPPING_110_GERMAN);
+                server.send(200, "text/plain", "Mapping changed to 110-LED German Layout");
+                break;
+            default:
+                server.send(400, "text/plain", "Invalid mapping type");
+                return;
+        }
+        
+        Serial.printf("LED mapping changed via web interface to type %d\n", mappingType);
+    } else {
+        server.send(400, "text/plain", "Missing mapping type parameter");
+    }
 }

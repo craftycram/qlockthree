@@ -3,6 +3,7 @@
 
 #include <FastLED.h>
 #include <Preferences.h>
+#include "led_mapping_manager.h"
 
 // QlockThree LED patterns and animations
 enum class LEDPattern {
@@ -34,6 +35,11 @@ public:
     void showWiFiConnecting();
     void showError();
     
+    // Mapping management
+    void setMapping(MappingType type);
+    void setCustomMapping(const char* mappingId);
+    LEDMappingManager* getMappingManager() { return &mappingManager; }
+    
     // Utility functions
     void clear();
     void fill(CRGB color);
@@ -56,7 +62,9 @@ public:
 
 private:
     Preferences preferences;
+    LEDMappingManager mappingManager;
     CRGB* leds;
+    bool* ledStates; // State array for mapping calculations
     int numLeds;
     int dataPin;
     uint8_t brightness;
