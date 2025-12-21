@@ -109,7 +109,10 @@ void LEDController::update() {
     // Update animation based on speed setting (higher speed = faster animation)
     if (now - lastUpdate < (255 - speed) / 4) {
         // Still need to update status LEDs even if not updating main pattern
-        updateStatusLEDs();
+        // EXCEPT during startup animation when we want to include status LEDs in the animation
+        if (currentPattern != LEDPattern::STARTUP_ANIMATION) {
+            updateStatusLEDs();
+        }
         FastLED.show();
         return;
     }
@@ -149,9 +152,6 @@ void LEDController::update() {
             updateStartupAnimation();
             break;
     }
-    
-    // ALWAYS update status LEDs AFTER pattern - they override any pattern
-    updateStatusLEDs();
     
     FastLED.show();
 }
@@ -371,13 +371,13 @@ void LEDController::updateUpdateMode() {
 void LEDController::updateStartupAnimation() {
     unsigned long elapsed = millis() - startupAnimationStart;
     
-    // Animation duration: 1 second (1000ms)
-    const unsigned long animationDuration = 1000;
+    // Animation duration: 1.2 seconds for full sequence + 1 second display time
+    const unsigned long animationDuration = 1200; // Increased to ensure 100% completion
+    const unsigned long displayDuration = 250;   // Additional time to display full animation
+    const unsigned long totalDuration = animationDuration + displayDuration; // 2.2 seconds total
     
-    if (elapsed >= animationDuration) {
-        // Animation complete - turn off LEDs and mark as complete
-        clear();
-        startupAnimationComplete = true;
+    if (elapsed >= totalDuration) {
+        // Animation and display complete - turn off LEDs and mark as complete
         // Restore original brightness setting
         FastLED.setBrightness(brightness);
         setPattern(LEDPattern::OFF);
@@ -388,47 +388,63 @@ void LEDController::updateStartupAnimation() {
     // Clear all LEDs first
     clear();
     
-    // QlockThree LED sequence (top to bottom, left to right within each row)
-    // Your sequence: 112-122, 111-101, 90-100, 89-79, 68-78, 67-57, 46-56, 45-35, 24-34, 23-13, 1-11
-    const int rowStarts[] = {112, 111, 90, 89, 68, 67, 46, 45, 24, 23, 1};
-    const int rowEnds[]   = {122, 101, 100, 79, 78, 57, 56, 35, 34, 13, 11};
-    const int numRows = 11;
+    // QlockThree LED sequence (0-based array indices as specified by user)
+    // INCLUDING status LEDs at the end
+    const int ledSequence[] = {
+        // 1st row: indices 112-122
+        112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122,
+        // 2nd row: indices 111-101 (reverse order)
+        111, 110, 109, 108, 107, 106, 105, 104, 103, 102, 101,
+        // 3rd row: indices 90-100
+        90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100,
+        // 4th row: indices 89-79 (reverse order)
+        89, 88, 87, 86, 85, 84, 83, 82, 81, 80, 79,
+        // 5th row: indices 68-78
+        68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78,
+        // 6th row: indices 67-57 (reverse order)
+        67, 66, 65, 64, 63, 62, 61, 60, 59, 58, 57,
+        // 7th row: indices 46-56
+        46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
+        // 8th row: indices 45-35 (reverse order)
+        45, 44, 43, 42, 41, 40, 39, 38, 37, 36, 35,
+        // 9th row: indices 24-34
+        24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
+        // 10th row: indices 23-13 (reverse order)
+        23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13,
+        // 11th row: indices 1-11
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+        // Status LEDs repeated at end for rainbow effect
+        10, 11
+    };
     
-    // Total LEDs in sequence
-    int totalSequenceLEDs = 0;
-    for (int i = 0; i < numRows; i++) {
-        totalSequenceLEDs += abs(rowEnds[i] - rowStarts[i]) + 1;
-    }
+    const int totalSequenceLEDs = sizeof(ledSequence) / sizeof(ledSequence[0]);
     
     // Calculate how many LEDs should be lit based on time elapsed
     float progress = (float)elapsed / (float)animationDuration;
     int ledsToLight = (int)(progress * totalSequenceLEDs);
     
-    // Light LEDs in sequence with rainbow colors
-    int currentLED = 0;
+    // Debug: Log animation progress
+    static unsigned long lastProgressDebug = 0;
+    if (millis() - lastProgressDebug > 200) { // Debug every 200ms
+        lastProgressDebug = millis();
+        Serial.printf("STARTUP DEBUG: elapsed=%lu, progress=%.2f, ledsToLight=%d/%d\n", 
+                     elapsed, progress, ledsToLight, totalSequenceLEDs);
+    }
     
-    for (int row = 0; row < numRows; row++) {
-        int start = rowStarts[row];
-        int end = rowEnds[row];
-        int step = (start <= end) ? 1 : -1;
+    // Light LEDs in sequence with rainbow colors
+    for (int i = 0; i < ledsToLight && i < totalSequenceLEDs; i++) {
+        // Calculate rainbow hue based on position in sequence
+        uint8_t hue = (i * 255) / totalSequenceLEDs;
         
-        for (int led = start; led != end + step; led += step) {
-            if (currentLED >= ledsToLight) {
-                return; // Stop lighting LEDs
-            }
-            
-            // Calculate rainbow hue based on position in sequence
-            uint8_t hue = (currentLED * 255) / totalSequenceLEDs;
-            
-            // Convert 1-based LED numbering to 0-based array index
-            int arrayIndex = led - 1;
-            
-            // Set the LED with rainbow color
-            if (arrayIndex >= 0 && arrayIndex < numLeds) {
-                leds[arrayIndex] = CHSV(hue, 255, 255); // Full saturation and brightness
-            }
-            
-            currentLED++;
+        // Get array index directly (already 0-based)
+        int arrayIndex = ledSequence[i];
+        
+        // Set the LED with rainbow color
+        if (arrayIndex >= 0 && arrayIndex < numLeds) {
+            leds[arrayIndex] = CHSV(hue, 255, 255); // Full saturation and brightness
+        } else {
+            // Debug: Log bounds check failures
+            Serial.printf("STARTUP DEBUG: LED %d out of bounds (numLeds=%d)\n", arrayIndex, numLeds);
         }
     }
 }

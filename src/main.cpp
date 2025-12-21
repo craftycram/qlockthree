@@ -35,16 +35,8 @@ void setup() {
     Serial.println("Starting rainbow startup animation...");
     ledController.showStartupAnimation();
     
-    // Keep the animation running for exactly 1 second while doing non-blocking initialization
-    unsigned long startupStart = millis();
-    while (millis() - startupStart < 1000) {
-        ledController.update(); // Update the animation
-        delay(10); // Small delay for smooth animation
-    }
-    
     // Animation complete, wait 500ms before turning off
-    Serial.println("Startup animation complete, waiting 500ms...");
-    delay(500);
+    delay(2000);
     
     // Turn off LEDs after startup animation
     Serial.println("Turning off LEDs, continuing setup...");
