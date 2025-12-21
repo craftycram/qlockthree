@@ -26,9 +26,19 @@ private:
     bool configModeActive;
     unsigned long wifiTimeout;
     
+    // Memory monitoring and crash recovery
+    bool crashRecoveryMode;
+    unsigned long lastHeapCheck;
+    
     void loadWiFiConfig();
     void saveWiFiConfig(String ssid, String password);
     void setupWiFiManager();
+    
+    // Memory protection methods
+    void printMemoryInfo(const char* context);
+    void monitorHeapUsage();
+    void configureWiFiManagerSafely();
+    void restartWiFiPortal();
     
     // Static callback wrappers
     static void saveWiFiCallbackWrapper();
