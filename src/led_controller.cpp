@@ -17,8 +17,13 @@ LEDController::LEDController() :
     startupAnimationComplete(false),
     wifiStatusState(0),
     timeOTAStatusState(0),
+    updateStatusState(0),
     statusLEDUpdate(0),
-    statusLEDStep(0) {
+    statusLEDStep(0),
+    ledTaskHandle(nullptr),
+    ledMutex(nullptr),
+    taskRunning(false),
+    statusLEDsEnabled(true) {
 }
 
 void LEDController::begin(int pin, int numLedsCount, int brightnessValue) {
@@ -60,11 +65,42 @@ void LEDController::begin(int pin, int numLedsCount, int brightnessValue) {
     clear();
     FastLED.show();
     
+    // Enable FreeRTOS threading for non-blocking LED animations
+    ledMutex = xSemaphoreCreateMutex();
+    if (ledMutex == nullptr) {
+        Serial.println("LED Controller: Failed to create mutex, falling back to main loop");
+        taskRunning = false;
+        ledTaskHandle = nullptr;
+    } else {
+        taskRunning = true;
+        // Create LED task on core 0 (app core) with high priority
+        BaseType_t result = xTaskCreatePinnedToCore(
+            ledTaskFunction,     // Task function
+            "LEDController",     // Task name
+            4096,                // Stack size (4KB)
+            this,                // Task parameter (this instance)
+            2,                   // Priority (high)
+            &ledTaskHandle,      // Task handle
+            0                    // Core 0 (app core, core 1 is protocol core)
+        );
+        
+        if (result == pdPASS) {
+            Serial.println("LED Controller: Threading enabled - animations will run independently");
+        } else {
+            Serial.println("LED Controller: Failed to create task, falling back to main loop");
+            taskRunning = false;
+            vSemaphoreDelete(ledMutex);
+            ledMutex = nullptr;
+            ledTaskHandle = nullptr;
+        }
+    }
+    
     Serial.println("LED Controller initialized:");
     Serial.printf("- Pin: %d\n", dataPin);
     Serial.printf("- LEDs: %d\n", numLeds);
     Serial.printf("- Brightness: %d\n", brightness);
     Serial.printf("- Mapping: %s\n", mappingManager.getCurrentMappingName());
+    Serial.printf("- LED Task: %s\n", taskRunning ? "Running on separate thread (Core 0)" : "Using main loop updates");
 }
 
 void LEDController::update() {
@@ -72,6 +108,9 @@ void LEDController::update() {
     
     // Update animation based on speed setting (higher speed = faster animation)
     if (now - lastUpdate < (255 - speed) / 4) {
+        // Still need to update status LEDs even if not updating main pattern
+        updateStatusLEDs();
+        FastLED.show();
         return;
     }
     lastUpdate = now;
@@ -82,7 +121,8 @@ void LEDController::update() {
             break;
             
         case LEDPattern::SOLID_COLOR:
-            // Static color, no update needed unless color changed
+            // Apply solid color to all LEDs
+            fill(solidColor);
             break;
             
         case LEDPattern::RAINBOW:
@@ -110,7 +150,7 @@ void LEDController::update() {
             break;
     }
     
-    // Always update status LEDs regardless of current pattern
+    // ALWAYS update status LEDs AFTER pattern - they override any pattern
     updateStatusLEDs();
     
     FastLED.show();
@@ -199,13 +239,8 @@ void LEDController::showTime(int hours, int minutes) {
     // Use mapping manager to calculate time display
     mappingManager.calculateTimeDisplay((uint8_t)hours, (uint8_t)minutes, ledStates);
     
-    // Apply LED states to actual LEDs, preserving status LEDs
+    // Apply LED states to actual LEDs - status LEDs will override in update()
     for (int i = 0; i < numLeds; i++) {
-        // Skip status LEDs (indices 10 and 11)
-        if (i == 10 || i == 11) {
-            continue; // Keep existing status LED values
-        }
-        
         if (ledStates[i]) {
             leds[i] = solidColor;
         } else {
@@ -248,16 +283,8 @@ void LEDController::showError() {
 }
 
 void LEDController::clear() {
-    // Save current status LED states
-    CRGB wifiStatusLED = (numLeds > 11) ? leds[11] : CRGB::Black;
-    CRGB timeOTAStatusLED = (numLeds > 10) ? leds[10] : CRGB::Black;
-    
-    // Clear all LEDs
+    // Clear all LEDs - status LEDs will be restored in update()
     fill_solid(leds, numLeds, CRGB::Black);
-    
-    // Restore status LEDs
-    if (numLeds > 11) leds[11] = wifiStatusLED;
-    if (numLeds > 10) leds[10] = timeOTAStatusLED;
 }
 
 void LEDController::fill(CRGB color) {
@@ -275,6 +302,32 @@ CRGB LEDController::getPixel(int index) {
         return leds[index];
     }
     return CRGB::Black;
+}
+
+void LEDController::setPixelThreadSafe(int index, CRGB color) {
+    if (taskRunning && ledMutex != nullptr) {
+        // Take mutex before accessing LED data
+        if (xSemaphoreTake(ledMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+            setPixel(index, color);
+            xSemaphoreGive(ledMutex);
+        }
+    } else {
+        // No threading, direct access
+        setPixel(index, color);
+    }
+}
+
+void LEDController::showThreadSafe() {
+    if (taskRunning && ledMutex != nullptr) {
+        // Take mutex before updating display
+        if (xSemaphoreTake(ledMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+            FastLED.show();
+            xSemaphoreGive(ledMutex);
+        }
+    } else {
+        // No threading, direct access
+        FastLED.show();
+    }
 }
 
 // Private animation implementations
@@ -378,6 +431,33 @@ void LEDController::updateStartupAnimation() {
             currentLED++;
         }
     }
+}
+
+// FreeRTOS task functions
+void LEDController::ledTaskFunction(void* parameter) {
+    LEDController* controller = static_cast<LEDController*>(parameter);
+    controller->ledTaskLoop();
+}
+
+void LEDController::ledTaskLoop() {
+    const TickType_t xDelay = pdMS_TO_TICKS(20); // 50 FPS update rate
+    
+    while (taskRunning) {
+        // Take mutex before accessing LED data
+        if (xSemaphoreTake(ledMutex, portMAX_DELAY) == pdTRUE) {
+            // Update LED patterns and animations
+            update();
+            
+            // Release mutex
+            xSemaphoreGive(ledMutex);
+        }
+        
+        // Delay for smooth animation timing
+        vTaskDelay(xDelay);
+    }
+    
+    // Clean up task
+    vTaskDelete(nullptr);
 }
 
 // QlockThree specific word mapping functions
@@ -562,7 +642,22 @@ void LEDController::setTimeOTAStatusLED(uint8_t state) {
     }
 }
 
+void LEDController::setUpdateStatusLED(uint8_t state) {
+    if (updateStatusState != state) {
+        updateStatusState = state;
+        Serial.printf("Update status LED changed to: %d\n", state);
+    }
+}
+
+void LEDController::setStatusLEDsEnabled(bool enabled) {
+    statusLEDsEnabled = enabled;
+}
+
 void LEDController::updateStatusLEDs() {
+    if (!statusLEDsEnabled) {
+        return; // Skip status LED updates when disabled
+    }
+    
     unsigned long now = millis();
     
     // Update status LEDs every 50ms for smooth breathing
@@ -570,60 +665,125 @@ void LEDController::updateStatusLEDs() {
         statusLEDUpdate = now;
         statusLEDStep++;
         
-        // LED index 11 - WiFi Status
-        if (wifiStatusState == 0) {
-            // Off when connected
-            leds[11] = CRGB::Black;
-        } else if (wifiStatusState == 1) {
-            // Breathing cyan while connecting
-            uint8_t brightness = beatsin8(30); // 30 BPM breathing
-            leds[11] = CRGB::Cyan;
-            leds[11].fadeToBlackBy(255 - brightness);
-        } else if (wifiStatusState == 2) {
-            // Breathing red while in AP mode
-            uint8_t brightness = beatsin8(30); // 30 BPM breathing
-            leds[11] = CRGB::Red;
-            leds[11].fadeToBlackBy(255 - brightness);
+        // LED 11 - WiFi Status (using actual array index 11)
+        int wifiLEDIndex = 11; // LED 11 at array index 11
+        
+        // Debug: Log when WiFi status should be breathing
+        static uint8_t lastWifiState = 255;
+        if (wifiStatusState != lastWifiState) {
+            Serial.printf("DEBUG: WiFi LED - numLeds=%d, wifiLEDIndex=%d, state=%d\n", 
+                         numLeds, wifiLEDIndex, wifiStatusState);
+            lastWifiState = wifiStatusState;
         }
         
-        // LED index 10 - Time/OTA Status
-        if (timeOTAStatusState == 0) {
-            // Off
-            leds[10] = CRGB::Black;
-        } else if (timeOTAStatusState == 1) {
-            // Breathing cyan during OTA updates
-            uint8_t brightness = beatsin8(30); // 30 BPM breathing
-            leds[10] = CRGB::Cyan;
-            leds[10].fadeToBlackBy(255 - brightness);
-        } else if (timeOTAStatusState == 2) {
-            // Breathing green three times on OTA success
-            if (statusLEDStep < 180) { // 3 seconds * 60 steps per second = 180 steps
-                uint8_t cycle = (statusLEDStep / 60) % 3; // 3 cycles of 1 second each
-                uint8_t brightness = beatsin8(60); // 60 BPM breathing for faster cycles
-                leds[10] = CRGB::Green;
-                leds[10].fadeToBlackBy(255 - brightness);
-            } else {
-                leds[10] = CRGB::Black;
-                timeOTAStatusState = 0; // Reset after 3 cycles
-                statusLEDStep = 0;
+        if (numLeds > wifiLEDIndex) {
+            if (wifiStatusState == 0) {
+                // Off when connected
+                leds[wifiLEDIndex] = CRGB::Black;
+            } else if (wifiStatusState == 1) {
+                // Breathing cyan while connecting
+                uint8_t brightness = beatsin8(30); // 30 BPM breathing
+                leds[wifiLEDIndex] = CRGB::Cyan;
+                leds[wifiLEDIndex].fadeToBlackBy(255 - brightness);
+                
+                // Debug: Log actual LED being set
+                static unsigned long lastDebugWifi = 0;
+                if (millis() - lastDebugWifi > 1000) { // Debug every second
+                    lastDebugWifi = millis();
+                    Serial.printf("DEBUG: Setting LED 11 (index %d) to cyan, brightness=%d\n", 
+                                 wifiLEDIndex, brightness);
+                }
+            } else if (wifiStatusState == 2) {
+                // Breathing red while in AP mode
+                uint8_t brightness = beatsin8(30); // 30 BPM breathing
+                leds[wifiLEDIndex] = CRGB::Red;
+                leds[wifiLEDIndex].fadeToBlackBy(255 - brightness);
             }
-        } else if (timeOTAStatusState == 3) {
-            // Breathing red three times on OTA error
-            if (statusLEDStep < 180) { // 3 seconds * 60 steps per second = 180 steps
-                uint8_t cycle = (statusLEDStep / 60) % 3; // 3 cycles of 1 second each
-                uint8_t brightness = beatsin8(60); // 60 BPM breathing for faster cycles
-                leds[10] = CRGB::Red;
-                leds[10].fadeToBlackBy(255 - brightness);
-            } else {
-                leds[10] = CRGB::Black;
-                timeOTAStatusState = 0; // Reset after 3 cycles
-                statusLEDStep = 0;
+        } else {
+            // Debug: Log bounds check failure
+            Serial.printf("DEBUG: WiFi LED bounds check failed - numLeds=%d, wifiLEDIndex=%d\n", 
+                         numLeds, wifiLEDIndex);
+        }
+        
+        // LED 10 - Time/OTA/Update Status (using actual array index 10)
+        int statusLEDIndex = 10; // LED 10 at array index 10
+        if (numLeds > statusLEDIndex) {
+            // Priority: Update status > OTA status > NTP status
+            if (updateStatusState > 0) {
+                if (updateStatusState == 1) {
+                    // Breathing blue while checking for updates
+                    uint8_t brightness = beatsin8(30); // 30 BPM breathing
+                    leds[statusLEDIndex] = CRGB::Blue;
+                    leds[statusLEDIndex].fadeToBlackBy(255 - brightness);
+                } else if (updateStatusState == 2) {
+                    // Breathing purple while downloading update
+                    uint8_t brightness = beatsin8(30); // 30 BPM breathing
+                    leds[statusLEDIndex] = CRGB::Purple;
+                    leds[statusLEDIndex].fadeToBlackBy(255 - brightness);
+                } else if (updateStatusState == 3) {
+                    // Flashing green three times on update success (400ms on, 400ms off)
+                    if (statusLEDStep < 240) { // 3 flashes * 80 steps per flash (800ms each) = 240 steps
+                        int flashCycle = (statusLEDStep / 80) % 3; // 3 cycles of 80 steps each
+                        bool shouldBeOn = ((statusLEDStep % 80) < 40); // On for first 40 steps (400ms)
+                        leds[statusLEDIndex] = shouldBeOn ? CRGB::Green : CRGB::Black;
+                    } else {
+                        leds[statusLEDIndex] = CRGB::Black;
+                        updateStatusState = 0; // Reset after 3 flashes
+                        statusLEDStep = 0;
+                    }
+                } else if (updateStatusState == 4) {
+                    // Flashing red three times on update error (400ms on, 400ms off)
+                    if (statusLEDStep < 240) { // 3 flashes * 80 steps per flash (800ms each) = 240 steps
+                        int flashCycle = (statusLEDStep / 80) % 3; // 3 cycles of 80 steps each
+                        bool shouldBeOn = ((statusLEDStep % 80) < 40); // On for first 40 steps (400ms)
+                        leds[statusLEDIndex] = shouldBeOn ? CRGB::Red : CRGB::Black;
+                    } else {
+                        leds[statusLEDIndex] = CRGB::Black;
+                        updateStatusState = 0; // Reset after 3 flashes
+                        statusLEDStep = 0;
+                    }
+                }
+                // Update status has priority - don't show OTA/NTP status
+                return;
             }
-        } else if (timeOTAStatusState == 4) {
-            // Breathing orange during NTP sync
-            uint8_t brightness = beatsin8(30); // 30 BPM breathing
-            leds[10] = CRGB::Orange;
-            leds[10].fadeToBlackBy(255 - brightness);
+            
+            // Handle OTA/NTP status when update status is not active
+            if (timeOTAStatusState == 0) {
+                // Off
+                leds[statusLEDIndex] = CRGB::Black;
+            } else if (timeOTAStatusState == 1) {
+                // Breathing cyan during OTA updates
+                uint8_t brightness = beatsin8(30); // 30 BPM breathing
+                leds[statusLEDIndex] = CRGB::Cyan;
+                leds[statusLEDIndex].fadeToBlackBy(255 - brightness);
+            } else if (timeOTAStatusState == 2) {
+                // Flashing green three times on OTA success (400ms on, 400ms off)
+                if (statusLEDStep < 240) { // 3 flashes * 80 steps per flash (800ms each) = 240 steps
+                    int flashCycle = (statusLEDStep / 80) % 3; // 3 cycles of 80 steps each
+                    bool shouldBeOn = ((statusLEDStep % 80) < 40); // On for first 40 steps (400ms)
+                    leds[statusLEDIndex] = shouldBeOn ? CRGB::Green : CRGB::Black;
+                } else {
+                    leds[statusLEDIndex] = CRGB::Black;
+                    timeOTAStatusState = 0; // Reset after 3 flashes
+                    statusLEDStep = 0;
+                }
+            } else if (timeOTAStatusState == 3) {
+                // Flashing red three times on OTA error (400ms on, 400ms off)
+                if (statusLEDStep < 240) { // 3 flashes * 80 steps per flash (800ms each) = 240 steps
+                    int flashCycle = (statusLEDStep / 80) % 3; // 3 cycles of 80 steps each
+                    bool shouldBeOn = ((statusLEDStep % 80) < 40); // On for first 40 steps (400ms)
+                    leds[statusLEDIndex] = shouldBeOn ? CRGB::Red : CRGB::Black;
+                } else {
+                    leds[statusLEDIndex] = CRGB::Black;
+                    timeOTAStatusState = 0; // Reset after 3 flashes
+                    statusLEDStep = 0;
+                }
+            } else if (timeOTAStatusState == 4) {
+                // Breathing orange during NTP sync
+                uint8_t brightness = beatsin8(30); // 30 BPM breathing
+                leds[statusLEDIndex] = CRGB::Orange;
+                leds[statusLEDIndex].fadeToBlackBy(255 - brightness);
+            }
         }
     }
 }

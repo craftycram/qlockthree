@@ -99,18 +99,19 @@ void WiFiManagerHelper::setupWiFiManager() {
     wifiManager.addParameter(&custom_hostname);
     wifiManager.addParameter(&custom_version);
     
-    // Start configuration portal
+    // Start AP mode and config portal - use timeout to make it non-blocking
     String apPassword = (strlen(AP_PASSWORD) > 0) ? AP_PASSWORD : "";
     
-    if (!wifiManager.startConfigPortal(AP_SSID, apPassword.c_str())) {
-        Serial.println("Failed to connect and hit timeout");
-        delay(3000);
-        ESP.restart();
-    }
+    Serial.println("Starting WiFi configuration portal...");
+    wifiManager.setConfigPortalBlocking(false); // Make it non-blocking
     
-    // If we get here, connection was successful
-    Serial.println("WiFi connected via portal!");
-    configModeActive = false;
+    if (!wifiManager.startConfigPortal(AP_SSID, apPassword.c_str())) {
+        Serial.println("Config portal started, staying in AP mode");
+        // Config portal is now running non-blocking
+    } else {
+        Serial.println("WiFi connected via portal!");
+        configModeActive = false;
+    }
 }
 
 void WiFiManagerHelper::process() {
@@ -144,6 +145,15 @@ void WiFiManagerHelper::saveWiFiCallbackWrapper() {
         
         if (newSSID.length() > 0) {
             instance->saveWiFiConfig(newSSID, newPassword);
+            
+            // Reset config mode flag when WiFi is successfully configured
+            instance->configModeActive = false;
+            Serial.println("Config mode deactivated - WiFi connected successfully");
+            
+            // Reboot after saving WiFi credentials for clean startup
+            Serial.println("Rebooting in 2 seconds to apply new WiFi settings...");
+            delay(2000);
+            ESP.restart();
         }
     }
 }

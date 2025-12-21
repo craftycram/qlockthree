@@ -97,6 +97,7 @@ bool TimeManager::syncTime() {
         return true;
     } else {
         Serial.println("Failed to synchronize time");
+        timeSynced = false; // Explicitly set to false on failure
         return false;
     }
 }
