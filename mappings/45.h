@@ -75,6 +75,40 @@ static const WordMapping CONNECTOR_WORDS[] = {
 // Minute dots for precise time (corner LEDs based on 125 LED total)
 static const uint8_t MINUTE_DOTS[] = {124, 123, 12, 0}; // corner positions from image
 
+// Status LED configuration
+#define STATUS_LED_WIFI 11      // WiFi status LED (index 11)
+#define STATUS_LED_SYSTEM 10    // System/NTP/OTA/Update status LED (index 10)
+
+// Startup animation sequence (0-based array indices)
+static const uint8_t STARTUP_SEQUENCE[] = {
+    // 1st row: indices 112-122
+    112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122,
+    // 2nd row: indices 111-101 (reverse order)
+    111, 110, 109, 108, 107, 106, 105, 104, 103, 102, 101,
+    // 3rd row: indices 90-100
+    90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100,
+    // 4th row: indices 89-79 (reverse order)
+    89, 88, 87, 86, 85, 84, 83, 82, 81, 80, 79,
+    // 5th row: indices 68-78
+    68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78,
+    // 6th row: indices 67-57 (reverse order)
+    67, 66, 65, 64, 63, 62, 61, 60, 59, 58, 57,
+    // 7th row: indices 46-56
+    46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
+    // 8th row: indices 45-35 (reverse order)
+    45, 44, 43, 42, 41, 40, 39, 38, 37, 36, 35,
+    // 9th row: indices 24-34
+    24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
+    // 10th row: indices 23-13 (reverse order)
+    23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13,
+    // 11th row: indices 1-11
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+    // Status LEDs repeated at end for rainbow effect
+    10, 11
+};
+
+#define STARTUP_SEQUENCE_LENGTH (sizeof(STARTUP_SEQUENCE) / sizeof(STARTUP_SEQUENCE[0]))
+
 // Weekday mappings (Bottom row: M D M D F S S)
 static const WordMapping WEEKDAY_WORDS[] = {
     {"M", 3, 1, false},        // Monday (Montag)

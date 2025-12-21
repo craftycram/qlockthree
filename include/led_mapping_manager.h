@@ -49,6 +49,12 @@ public:
     // Getters for web interface
     String getMappingInfoJSON() const;
     String getAvailableMappingsJSON() const;
+    
+    // Status LED and startup sequence configuration
+    uint8_t getWiFiStatusLED() const;
+    uint8_t getSystemStatusLED() const;
+    const uint8_t* getStartupSequence() const;
+    uint16_t getStartupSequenceLength() const;
 
 private:
     Preferences preferences;

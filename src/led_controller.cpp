@@ -385,39 +385,24 @@ void LEDController::updateStartupAnimation() {
         return;
     }
     
+    // Check if we're in the display phase (animation completed but showing result)
+    if (elapsed >= animationDuration) {
+        // Animation complete, just display the full rainbow - don't clear or update LEDs
+        Serial.printf("STARTUP DEBUG: Display phase - elapsed=%lu, showing complete rainbow\n", elapsed);
+        return;
+    }
+    
     // Clear all LEDs first
     clear();
     
-    // QlockThree LED sequence (0-based array indices as specified by user)
-    // INCLUDING status LEDs at the end
-    const int ledSequence[] = {
-        // 1st row: indices 112-122
-        112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122,
-        // 2nd row: indices 111-101 (reverse order)
-        111, 110, 109, 108, 107, 106, 105, 104, 103, 102, 101,
-        // 3rd row: indices 90-100
-        90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100,
-        // 4th row: indices 89-79 (reverse order)
-        89, 88, 87, 86, 85, 84, 83, 82, 81, 80, 79,
-        // 5th row: indices 68-78
-        68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78,
-        // 6th row: indices 67-57 (reverse order)
-        67, 66, 65, 64, 63, 62, 61, 60, 59, 58, 57,
-        // 7th row: indices 46-56
-        46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
-        // 8th row: indices 45-35 (reverse order)
-        45, 44, 43, 42, 41, 40, 39, 38, 37, 36, 35,
-        // 9th row: indices 24-34
-        24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
-        // 10th row: indices 23-13 (reverse order)
-        23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13,
-        // 11th row: indices 1-11
-        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-        // Status LEDs repeated at end for rainbow effect
-        10, 11
-    };
+    // Get startup sequence from mapping manager
+    const uint8_t* ledSequence = mappingManager.getStartupSequence();
+    const uint16_t totalSequenceLEDs = mappingManager.getStartupSequenceLength();
     
-    const int totalSequenceLEDs = sizeof(ledSequence) / sizeof(ledSequence[0]);
+    if (!ledSequence || totalSequenceLEDs == 0) {
+        Serial.println("STARTUP DEBUG: No startup sequence defined in mapping");
+        return;
+    }
     
     // Calculate how many LEDs should be lit based on time elapsed
     float progress = (float)elapsed / (float)animationDuration;
@@ -681,8 +666,8 @@ void LEDController::updateStatusLEDs() {
         statusLEDUpdate = now;
         statusLEDStep++;
         
-        // LED 11 - WiFi Status (using actual array index 11)
-        int wifiLEDIndex = 11; // LED 11 at array index 11
+        // Get WiFi status LED index from mapping
+        int wifiLEDIndex = mappingManager.getWiFiStatusLED();
         
         // Debug: Log when WiFi status should be breathing
         static uint8_t lastWifiState = 255;
@@ -706,7 +691,7 @@ void LEDController::updateStatusLEDs() {
                 static unsigned long lastDebugWifi = 0;
                 if (millis() - lastDebugWifi > 1000) { // Debug every second
                     lastDebugWifi = millis();
-                    Serial.printf("DEBUG: Setting LED 11 (index %d) to cyan, brightness=%d\n", 
+                    Serial.printf("DEBUG: Setting WiFi LED (index %d) to cyan, brightness=%d\n", 
                                  wifiLEDIndex, brightness);
                 }
             } else if (wifiStatusState == 2) {
@@ -721,8 +706,8 @@ void LEDController::updateStatusLEDs() {
                          numLeds, wifiLEDIndex);
         }
         
-        // LED 10 - Time/OTA/Update Status (using actual array index 10)
-        int statusLEDIndex = 10; // LED 10 at array index 10
+        // Get system status LED index from mapping
+        int statusLEDIndex = mappingManager.getSystemStatusLED();
         if (numLeds > statusLEDIndex) {
             // Priority: Update status > OTA status > NTP status
             if (updateStatusState > 0) {

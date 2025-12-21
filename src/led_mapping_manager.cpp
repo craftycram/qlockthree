@@ -208,6 +208,56 @@ String LEDMappingManager::getAvailableMappingsJSON() const {
     return json;
 }
 
+// Status LED and startup sequence configuration
+uint8_t LEDMappingManager::getWiFiStatusLED() const {
+    // Return mapping-specific WiFi status LED index
+    switch (currentMappingType) {
+        case MappingType::MAPPING_45_GERMAN:
+            return STATUS_LED_WIFI; // Defined in mappings/45.h
+        case MappingType::MAPPING_110_GERMAN:
+            return 11; // Default for 110-LED mapping
+        default:
+            return 11; // Default fallback
+    }
+}
+
+uint8_t LEDMappingManager::getSystemStatusLED() const {
+    // Return mapping-specific system status LED index
+    switch (currentMappingType) {
+        case MappingType::MAPPING_45_GERMAN:
+            return STATUS_LED_SYSTEM; // Defined in mappings/45.h
+        case MappingType::MAPPING_110_GERMAN:
+            return 10; // Default for 110-LED mapping
+        default:
+            return 10; // Default fallback
+    }
+}
+
+const uint8_t* LEDMappingManager::getStartupSequence() const {
+    // Return mapping-specific startup sequence
+    switch (currentMappingType) {
+        case MappingType::MAPPING_45_GERMAN:
+            return STARTUP_SEQUENCE; // Defined in mappings/45.h
+        case MappingType::MAPPING_110_GERMAN:
+            // Could define a different sequence for 110-LED mapping
+            return STARTUP_SEQUENCE; // Use same sequence for now
+        default:
+            return STARTUP_SEQUENCE; // Default fallback
+    }
+}
+
+uint16_t LEDMappingManager::getStartupSequenceLength() const {
+    // Return mapping-specific startup sequence length
+    switch (currentMappingType) {
+        case MappingType::MAPPING_45_GERMAN:
+            return STARTUP_SEQUENCE_LENGTH; // Defined in mappings/45.h
+        case MappingType::MAPPING_110_GERMAN:
+            return STARTUP_SEQUENCE_LENGTH; // Use same length for now
+        default:
+            return STARTUP_SEQUENCE_LENGTH; // Default fallback
+    }
+}
+
 // Private mapping loading functions
 void LEDMappingManager::load45GermanMapping() {
     // Include the 45cm mapping functions and data
