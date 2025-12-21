@@ -25,7 +25,7 @@ void setup() {
     Serial.begin(115200);
     delay(1000); // Allow serial to initialize
     
-    Serial.println("Starting QlockThree with modular architecture...");
+    Serial.println("Starting qlockthree with modular architecture...");
     
     // Print startup memory info
     Serial.printf("Startup free heap: %d bytes\n", ESP.getFreeHeap());
@@ -290,7 +290,7 @@ void loop() {
     // LED animations are now running in separate thread - no need for main loop updates
     // Only call manual updates during error flash when threading is temporarily disabled
     
-    // QlockThree main functionality - show current time using TimeManager
+    // qlockthree main functionality - show current time using TimeManager
     if (millis() - lastTimeUpdate > 1000) { // Update time display every second
         lastTimeUpdate = millis();
         
@@ -322,7 +322,7 @@ void loop() {
             int hours = currentTime.tm_hour;
             int minutes = currentTime.tm_min;
             
-            // Show time on QlockThree LEDs
+            // Show time on qlockthree LEDs
             if (ledController.getCurrentPattern() == LEDPattern::CLOCK_DISPLAY) {
                 ledController.showTime(hours, minutes);
             }
@@ -406,7 +406,7 @@ void loop() {
         }
     }
     
-    // Add your additional QlockThree features here:
+    // Add your additional qlockthree features here:
     // - Button handling
     // - Brightness sensors  
     // - Temperature/humidity sensors

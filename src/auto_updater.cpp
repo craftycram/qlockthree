@@ -45,7 +45,7 @@ void AutoUpdater::checkForUpdates(bool force) {
         return;
     }
     
-    http.addHeader("User-Agent", "QlockThree-ESP32");
+    http.addHeader("User-Agent", "qlockthree-ESP32");
     http.setTimeout(15000); // 15 second timeout
     
     Serial.println("AUTO UPDATE DEBUG: Sending HTTP GET request...");
@@ -165,7 +165,7 @@ bool AutoUpdater::downloadAndInstallUpdate(String url) {
     HTTPClient http;
     http.begin(client, url);
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS); // Handle GitHub redirects
-    http.setUserAgent("QlockThree-ESP32");
+    http.setUserAgent("qlockthree-ESP32");
     http.setTimeout(30000); // 30 second timeout
     
     int httpCode = http.GET();

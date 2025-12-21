@@ -1,4 +1,4 @@
-name: Build and Release QlockThree Firmware
+name: Build and Release qlockthree Firmware
 
 on:
   push:
@@ -97,9 +97,9 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         tag_name: v${{ steps.version.outputs.version }}
-        name: QlockThree Firmware v${{ steps.version.outputs.version }}
+        name: qlockthree Firmware v${{ steps.version.outputs.version }}
         body: |
-          ## QlockThree Firmware Release v${{ steps.version.outputs.version }}
+          ## qlockthree Firmware Release v${{ steps.version.outputs.version }}
           
           ### 📦 Downloads
           - **`qlockthree-esp32c3-${{ steps.version.outputs.version }}.bin`** - Main firmware (use for OTA updates)
@@ -150,5 +150,5 @@ jobs:
     steps:
     - name: Success notification
       run: |
-        echo "✅ QlockThree firmware build and release completed successfully!"
+        echo "✅ qlockthree firmware build and release completed successfully!"
         echo "🚀 The new firmware is now available for auto-update."

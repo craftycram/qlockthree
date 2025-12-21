@@ -281,7 +281,7 @@ void LEDMappingManager::load110GermanMapping() {
     // Include the 110-LED mapping functions and data
     // Note: This uses the inline functions from mappings/110.h
     
-    setMappingData("110-LED German Layout", "110", "Standard German QlockThree 11x10 grid", 110);
+    setMappingData("110-LED German Layout", "110", "Standard German qlockthree 11x10 grid", 110);
     
     // Set up arrays - these are from the 110.h mapping file
     extern const WordMapping BASE_WORDS[];

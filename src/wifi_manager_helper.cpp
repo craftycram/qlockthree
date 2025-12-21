@@ -254,7 +254,7 @@ void WiFiManagerHelper::configureWiFiManagerSafely() {
         wifiManager.setDebugOutput(!crashRecoveryMode); // Disable debug in recovery mode
         
         // Customize portal with memory-safe settings
-        wifiManager.setTitle("QlockThree WiFi Setup");
+        wifiManager.setTitle("qlockthree WiFi Setup");
         wifiManager.setDarkMode(true);
         
         // Only add parameters if not in crash recovery mode

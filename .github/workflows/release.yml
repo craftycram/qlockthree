@@ -89,9 +89,9 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         tag_name: v${{ github.event.inputs.version }}
-        name: QlockThree v${{ github.event.inputs.version }}
+        name: qlockthree v${{ github.event.inputs.version }}
         body: |
-          ## QlockThree Firmware v${{ github.event.inputs.version }}
+          ## qlockthree Firmware v${{ github.event.inputs.version }}
           
           ### 🎯 Quick Start
           1. **For new devices:** Flash `qlockthree-esp32c3-${{ github.event.inputs.version }}-complete.bin`

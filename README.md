@@ -1,4 +1,4 @@
-# QlockThree - WiFi and OTA Enabled
+# qlockthree - WiFi and OTA Enabled
 
 This PlatformIO project for ESP32-S3 includes WiFi connectivity and Over-The-Air (OTA) update capabilities.
 
@@ -27,7 +27,7 @@ cp include/config.h.template include/config.h
 ```
 
 When you flash the firmware:
-1. Device will create a WiFi Access Point named `QlockThree-Setup`
+1. Device will create a WiFi Access Point named `qlockthree-Setup`
 2. Connect to this AP with password: `qlockthree123`
 3. A captive portal will open automatically (or go to `http://192.168.4.1`)
 4. Select your WiFi network and enter the password
@@ -156,7 +156,7 @@ You can change WiFi networks without reflashing firmware:
 3. **Manual Reset**: The device will enter configuration mode if it can't connect to the saved network
 
 After WiFi reset:
-- Device restarts and creates the `QlockThree-Setup` access point
+- Device restarts and creates the `qlockthree-Setup` access point
 - Connect to this AP and configure new WiFi credentials
 - New credentials are saved and device connects to the new network
 
@@ -266,6 +266,6 @@ The following libraries are automatically installed via `platformio.ini`:
 
 ## Development
 
-You can now add your QlockThree-specific code to the `loop()` function or create additional functions. The WiFi and OTA functionality will continue running in the background.
+You can now add your qlockthree-specific code to the `loop()` function or create additional functions. The WiFi and OTA functionality will continue running in the background.
 
 Remember to call `ArduinoOTA.handle()` regularly in your main loop to ensure OTA updates remain available.

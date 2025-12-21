@@ -201,7 +201,7 @@ String WebServerManager::getStatusJSON() {
 
 String WebServerManager::getStatusHTML() {
     String html = "<!DOCTYPE html><html><head>";
-    html += "<title>QlockThree Status</title>";
+    html += "<title>qlockthree Status</title>";
     html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
     html += "<style>body{font-family:Arial,sans-serif;margin:40px;background:#f0f0f0}";
     html += ".container{background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}";
@@ -250,7 +250,7 @@ String WebServerManager::getStatusHTML() {
     
     html += "</head><body>";
     html += "<div class='container'>";
-    html += "<h1>QlockThree Status</h1>";
+    html += "<h1>qlockthree Status</h1>";
     html += "<div class='info'><strong>Hostname:</strong> " + String(OTA_HOSTNAME) + "</div>";
     html += "<div class='info'><strong>IP Address:</strong> " + WiFi.localIP().toString() + "</div>";
     html += "<div class='info'><strong>WiFi Network:</strong> " + WiFi.SSID() + "</div>";
@@ -276,7 +276,7 @@ String WebServerManager::getStatusHTML() {
     
     html += "<div class='warning'>";
     html += "<strong>WiFi Configuration:</strong> To reconfigure WiFi settings, click the 'Reset WiFi' button below. ";
-    html += "The device will restart and create a 'QlockThree-Setup' access point for configuration.";
+    html += "The device will restart and create a 'qlockthree-Setup' access point for configuration.";
     html += "</div>";
     
     html += "<br>";
@@ -363,7 +363,7 @@ void WebServerManager::handleSetNTP() {
 
 String WebServerManager::getTimeConfigHTML() {
     String html = "<!DOCTYPE html><html><head>";
-    html += "<title>QlockThree Time Configuration</title>";
+    html += "<title>qlockthree Time Configuration</title>";
     html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
     html += "<style>body{font-family:Arial,sans-serif;margin:40px;background:#f0f0f0}";
     html += ".container{background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}";
@@ -404,7 +404,7 @@ String WebServerManager::getTimeConfigHTML() {
     
     html += "</head><body>";
     html += "<div class='container'>";
-    html += "<h1>🕐 QlockThree Time Configuration</h1>";
+    html += "<h1>🕐 qlockthree Time Configuration</h1>";
     
     if (timeManager) {
         html += "<div class='control-group current-time'>";
@@ -558,7 +558,7 @@ String WebServerManager::getLEDStatusJSON() {
 // ENHANCED LED Configuration HTML with Color Picker
 String WebServerManager::getLEDConfigHTML() {
     String html = "<!DOCTYPE html><html><head>";
-    html += "<title>QlockThree LED Configuration</title>";
+    html += "<title>qlockthree LED Configuration</title>";
     html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
     html += "<style>";
     html += "body{font-family:Arial,sans-serif;margin:20px;background:#f0f0f0;}";
@@ -686,7 +686,7 @@ String WebServerManager::getLEDConfigHTML() {
     
     html += "</head><body>";
     html += "<div class='container'>";
-    html += "<h1>🌈 QlockThree LED Configuration</h1>";
+    html += "<h1>🌈 qlockthree LED Configuration</h1>";
     
     if (ledController) {
         html += "<div class='control-group'>";
@@ -698,7 +698,7 @@ String WebServerManager::getLEDConfigHTML() {
         // ENHANCED: Color Configuration Section
         html += "<div class='control-group'>";
         html += "<h3>🎨 Color Configuration</h3>";
-        html += "<p><strong>📝 Instructions:</strong> Select a color below, then click '💎 Show Selected Color' to see it on your QlockThree. The main loop shows time in clock mode, so you need to switch to solid color mode to test colors.</p>";
+        html += "<p><strong>📝 Instructions:</strong> Select a color below, then click '💎 Show Selected Color' to see it on your qlockthree. The main loop shows time in clock mode, so you need to switch to solid color mode to test colors.</p>";
         
         CRGB currentColor = ledController->getSolidColor();
         String currentHex = "#" + String(currentColor.r < 16 ? "0" : "") + String(currentColor.r, HEX) + 
@@ -774,7 +774,7 @@ void WebServerManager::handleLEDMapping() {
     }
     
     String html = "<!DOCTYPE html><html><head>";
-    html += "<title>QlockThree LED Mapping</title>";
+    html += "<title>qlockthree LED Mapping</title>";
     html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
     html += "<style>body{font-family:Arial,sans-serif;margin:40px;background:#f0f0f0}";
     html += ".container{background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}";
@@ -800,7 +800,7 @@ void WebServerManager::handleLEDMapping() {
     
     html += "</head><body>";
     html += "<div class='container'>";
-    html += "<h1>🗺️ QlockThree LED Mapping</h1>";
+    html += "<h1>🗺️ qlockthree LED Mapping</h1>";
     
     // Current mapping info
     LEDMappingManager* mappingManager = ledController->getMappingManager();

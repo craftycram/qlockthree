@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# QlockThree Build Script
+# qlockthree Build Script
 # This script helps with local development and testing
 
 set -e  # Exit on any error
@@ -140,7 +140,7 @@ case $COMMAND in
         ;;
         
     "help" | "-h" | "--help")
-        echo "QlockThree Build Script"
+        echo "qlockthree Build Script"
         echo ""
         echo "Usage: $0 COMMAND [ARGS]"
         echo ""

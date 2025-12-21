@@ -8,7 +8,7 @@
 #include <freertos/task.h>
 #include <freertos/semphr.h>
 
-// QlockThree LED patterns and animations
+// qlockthree LED patterns and animations
 enum class LEDPattern {
     OFF,
     SOLID_COLOR,
@@ -32,7 +32,7 @@ public:
     void setBrightness(uint8_t brightness);
     void setSpeed(uint8_t speed);
     
-    // QlockThree specific functions
+    // qlockthree specific functions
     void showTime(int hours, int minutes);
     void showSetupMode();
     void showUpdateMode();

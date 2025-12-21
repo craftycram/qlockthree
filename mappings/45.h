@@ -1,8 +1,8 @@
 #ifndef MAPPING_45_H
 #define MAPPING_45_H
 
-// QlockThree 11x11 Layout Mapping Configuration
-// This file defines the word-to-LED mappings for the 45cm QlockThree with 11x11 layout
+// qlockthree 11x11 Layout Mapping Configuration
+// This file defines the word-to-LED mappings for the 45cm qlockthree with 11x11 layout
 // Layout:
 // Row 0: ESKISTLFÜNF (0-10)
 // Row 1: ZEHNZWANZIG (11-21)  
@@ -19,11 +19,11 @@
 #include <stdint.h>
 
 // Mapping metadata
-#define MAPPING_NAME "45cm QlockThree 11x11"
+#define MAPPING_NAME "45cm qlockthree 11x11"
 #define MAPPING_ID "45cm"
 #define MAPPING_LANGUAGE "DE"
 #define MAPPING_TOTAL_LEDS 125
-#define MAPPING_DESCRIPTION "45cm German QlockThree with 11x11 grid, weekdays, and 4 corner dots"
+#define MAPPING_DESCRIPTION "45cm German qlockthree with 11x11 grid, weekdays, and 4 corner dots"
 
 // Word mapping structure
 struct WordMapping {
