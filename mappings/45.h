@@ -35,41 +35,41 @@ struct WordMapping {
 
 // Time word mappings - Base words always shown
 static const WordMapping BASE_WORDS[] = {
-    {"ES", 112, 113, false},       // Row 0: ES (0-1)
-    {"IST", 115, 117, false},      // Row 0: IST (3-5)
+    {"ES", 112, 2, false},       // Row 0: ES (0-1)
+    {"IST", 115, 3, false},      // Row 0: IST (3-5)
 };
 
 // Hour mappings (0-23)
 static const WordMapping HOUR_WORDS[] = {
-    {"ZWÖLF", 61, 65, false},   // Row 5: ZWÖLF (57-60) - skipping DR
-    {"EINS", 40, 43, false},    // Row 7: EINS (78-81) - inside ZWEINSIEBEN
-    {"ZWEI", 42, 45, false},    // Row 7: ZWEI (77-80)
-    {"DREI", 90, 93, false},    // Row 6: DREI (73-76)
-    {"VIER", 27, 30, false},    // Row 8: VIER (91-94)
-    {"FÜNF", 58, 61, false},    // Row 5: FÜNF (61-64)
-    {"SECHS", 20, 23, false},   // Row 9: SECHS (99-103)
-    {"SIEBEN", 35, 40, false},  // Row 7: SIEBEN (82-87)
-    {"ACHT", 31, 34, false},    // Row 8: ACHT (95-98)
-    {"NEUN", 49, 52, false},    // Row 6: NEUN (67-70) - inside ZEHNEUNDREI
-    {"ZEHN", 46, 49, false},    // Row 6: ZEHN (66-69)
-    {"ELF", 24, 26, false},     // Row 8: ELF (88-90)
+    {"ZWÖLF", 61, 5, false},   // Row 5: ZWÖLF (57-60) - skipping DR
+    {"EINS", 40, 4, false},    // Row 7: EINS (78-81) - inside ZWEINSIEBEN
+    {"ZWEI", 42, 4, false},    // Row 7: ZWEI (77-80)
+    {"DREI", 90, 4, false},    // Row 6: DREI (73-76)
+    {"VIER", 27, 4, false},    // Row 8: VIER (91-94)
+    {"FÜNF", 58, 4, false},    // Row 5: FÜNF (61-64)
+    {"SECHS", 20, 5, false},   // Row 9: SECHS (99-103)
+    {"SIEBEN", 35, 6, false},  // Row 7: SIEBEN (82-87)
+    {"ACHT", 31, 4, false},    // Row 8: ACHT (95-98)
+    {"NEUN", 49, 4, false},    // Row 6: NEUN (67-70) - inside ZEHNEUNDREI
+    {"ZEHN", 46, 4, false},    // Row 6: ZEHN (66-69)
+    {"ELF", 24, 3, false},     // Row 8: ELF (88-90)
 };
 
 // Minute mappings (5-minute intervals)
 static const WordMapping MINUTE_WORDS[] = {
-    {"FÜNF", 119, 122, false},     // Row 0: FÜNF (7-10)
-    {"ZEHN", 108, 111, false},    // Row 1: ZEHN (11-14)
-    {"VIERTEL", 94, 100, false}, // Row 2: VIERTEL (26-32)
-    {"ZWANZIG", 101, 107, false}, // Row 1: ZWANZIG (15-21)
-    {"DREIVIERTEL", 90, 100, false}, // Row 2: DREIVIERTEL (22-32)
-    {"HALB", 68, 71, false},    // Row 4: HALB (44-47)
+    {"FÜNF", 119, 4, false},     // Row 0: FÜNF (7-10)
+    {"ZEHN", 108, 4, false},    // Row 1: ZEHN (11-14)
+    {"VIERTEL", 94, 7, false}, // Row 2: VIERTEL (26-32)
+    {"ZWANZIG", 101, 7, false}, // Row 1: ZWANZIG (15-21)
+    {"DREIVIERTEL", 90, 11, false}, // Row 2: DREIVIERTEL (22-32)
+    {"HALB", 68, 4, false},    // Row 4: HALB (44-47)
 };
 
 // Connector words
 static const WordMapping CONNECTOR_WORDS[] = {
-    {"VOR", 79, 81, false},     // Row 3: VOR (40-42)
-    {"NACH", 86, 89, false},    // Row 3: NACH (33-36)
-    {"UHR", 15, 17, false},    // Row 9: UHR (105-107)
+    {"VOR", 79, 3, false},     // Row 3: VOR (40-42)
+    {"NACH", 86, 4, false},    // Row 3: NACH (33-36)
+    {"UHR", 15, 3, false},    // Row 9: UHR (105-107)
 };
 
 // Minute dots for precise time (corner LEDs based on 125 LED total)

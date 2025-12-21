@@ -223,8 +223,8 @@ void LEDMappingManager::load45GermanMapping() {
                     MINUTE_DOTS, 4);    // 4 corner dots
     
     // Set up function pointers - these are the inline functions from 45.h
-    setMappingFunctions(shouldShowBaseWords, getHourWordIndex, getMinuteWordIndex,
-                       getConnectorWordIndex, getMinuteDots, isHalfPast);
+    setMappingFunctions(::shouldShowBaseWords, ::getHourWordIndex, ::getMinuteWordIndex,
+                       ::getConnectorWordIndex, ::getMinuteDots, ::isHalfPast);
 }
 
 void LEDMappingManager::load110GermanMapping() {
