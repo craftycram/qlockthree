@@ -8,7 +8,7 @@ LEDController::LEDController() :
     brightness(128), 
     speed(50),
     currentPattern(LEDPattern::OFF),
-    solidColor(CRGB::White),
+    solidColor(CRGB(255, 220, 180)),  // Neutral warm white instead of harsh pure white
     lastUpdate(0),
     animationStep(0),
     hue(0),
@@ -471,8 +471,8 @@ void LEDController::loadSettings() {
     uint8_t newBrightness = preferences.getUChar("brightness", brightness);
     uint8_t newSpeed = preferences.getUChar("speed", speed);
     
-    // Load saved color
-    uint32_t savedColor = preferences.getUInt("solid_color", 0xFFFFFF);
+    // Load saved color (default to neutral warm white)
+    uint32_t savedColor = preferences.getUInt("solid_color", 0xFFDCB4);  // RGB(255, 220, 180)
     CRGB newSolidColor = CRGB(
         (savedColor >> 16) & 0xFF,  // Red
         (savedColor >> 8) & 0xFF,   // Green
