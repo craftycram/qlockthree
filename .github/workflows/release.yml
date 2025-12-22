@@ -33,9 +33,10 @@ jobs:
         
     - name: Update version in config
       run: |
-        cp include/config.h.template include/config.h
-        sed -i 's/const char\* CURRENT_VERSION = ".*";/const char* CURRENT_VERSION = "${{ github.event.inputs.version }}";/' include/config.h
-        echo "Updated version to ${{ github.event.inputs.version }}"
+        # Update the version in config.h (correct format is #define)
+        sed -i 's/#define CURRENT_VERSION ".*"/#define CURRENT_VERSION "${{ github.event.inputs.version }}"/' include/config.h
+        echo "Updated version to ${{ github.event.inputs.version }} in include/config.h"
+        grep "CURRENT_VERSION" include/config.h
         
     - name: Build firmware
       run: |
@@ -71,15 +72,11 @@ jobs:
         }
         EOF
         
-    - name: Update config.h template with new version
-      run: |
-        sed -i 's/const char\* CURRENT_VERSION = ".*";/const char* CURRENT_VERSION = "${{ github.event.inputs.version }}";/' include/config.h.template
-        
     - name: Commit version update
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add include/config.h.template
+        git add include/config.h
         git commit -m "chore: bump version to ${{ github.event.inputs.version }}" || exit 0
         git tag v${{ github.event.inputs.version }}
         git push origin HEAD:${{ github.ref_name }}
