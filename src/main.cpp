@@ -89,8 +89,8 @@ void setup() {
         otaManager.begin(OTA_HOSTNAME);
         // Optional: otaManager.begin(OTA_HOSTNAME, OTA_PASSWORD);
         
-        // Initialize Auto Updater
-        autoUpdater.begin("craftycram/qlockthree", CURRENT_VERSION, UPDATE_CHECK_INTERVAL);
+        // Initialize Auto Updater with LED controller for feedback
+        autoUpdater.begin("craftycram/qlockthree", CURRENT_VERSION, UPDATE_CHECK_INTERVAL, &ledController);
         
         // Initialize Web Server with TimeManager
         webServer.begin(&wifiManager, &autoUpdater, &ledController, &timeManager);

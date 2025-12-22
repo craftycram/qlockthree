@@ -5,10 +5,13 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 
+// Forward declaration to avoid circular dependency
+class LEDController;
+
 class AutoUpdater {
 public:
     AutoUpdater();
-    void begin(const char* githubRepo, const char* currentVersion, unsigned long checkInterval);
+    void begin(const char* githubRepo, const char* currentVersion, unsigned long checkInterval, LEDController* ledController = nullptr);
     void checkForUpdates();
     void checkForUpdates(bool force);
     bool isUpdateAvailable() const { return updateAvailable; }
@@ -21,6 +24,7 @@ private:
     String currentVersion;
     unsigned long updateCheckInterval;
     unsigned long lastUpdateCheck;
+    LEDController* ledController;
     
     // Update status
     bool updateAvailable;
@@ -29,6 +33,7 @@ private:
     
     String compareVersions(String current, String latest);
     bool downloadAndInstallUpdate(String url);
+    void showUpdateSuccessFeedback();
 };
 
 #endif // AUTO_UPDATER_H

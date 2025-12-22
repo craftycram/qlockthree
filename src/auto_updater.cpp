@@ -1,13 +1,15 @@
 #include "auto_updater.h"
+#include "led_controller.h"
 #include <Update.h>
 
-AutoUpdater::AutoUpdater() : updateAvailable(false), lastUpdateCheck(0) {
+AutoUpdater::AutoUpdater() : updateAvailable(false), lastUpdateCheck(0), ledController(nullptr) {
 }
 
-void AutoUpdater::begin(const char* githubRepo, const char* currentVersion, unsigned long checkInterval) {
+void AutoUpdater::begin(const char* githubRepo, const char* currentVersion, unsigned long checkInterval, LEDController* ledCtrl) {
     githubUpdateUrl = String("https://api.github.com/repos/") + githubRepo + "/releases/latest";
     this->currentVersion = currentVersion;
     updateCheckInterval = checkInterval;
+    ledController = ledCtrl;
     
     Serial.println("Auto-updater initialized:");
     Serial.println("GitHub URL: " + githubUpdateUrl);
@@ -190,8 +192,9 @@ bool AutoUpdater::downloadAndInstallUpdate(String url) {
                 
                 if (Update.end()) {
                     if (Update.isFinished()) {
-                        Serial.println("Update finished. Restarting...");
-                        delay(1000);
+                        Serial.println("Update finished. Showing success feedback...");
+                        showUpdateSuccessFeedback();
+                        Serial.println("Restarting...");
                         ESP.restart();
                         return true;
                     } else {
@@ -255,4 +258,22 @@ String AutoUpdater::compareVersions(String current, String latest) {
     }
     
     return "current";
+}
+
+void AutoUpdater::showUpdateSuccessFeedback() {
+    if (!ledController) {
+        Serial.println("UPDATE SUCCESS: No LED controller available for feedback");
+        delay(2000); // Just wait if no LED controller
+        return;
+    }
+    
+    Serial.println("UPDATE SUCCESS: Setting LED controller to flash green for successful update");
+    
+    // Use the existing LED controller status system for green flashing
+    ledController->setUpdateStatusLED(3); // State 3 = green flashing on success
+    
+    // Wait for the flash sequence to complete (3 flashes * 800ms each = ~2.5 seconds)
+    delay(2500);
+    
+    Serial.println("UPDATE SUCCESS: Green flash sequence complete");
 }
