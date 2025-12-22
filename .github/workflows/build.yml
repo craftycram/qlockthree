@@ -44,15 +44,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install platformio esptool
         
-    - name: Create config.h from template
-      run: |
-        cp include/config.h.template include/config.h
-        echo "Created config.h from template"
-        
     - name: Get version from config.h
       id: version
       run: |
-        VERSION=$(grep 'CURRENT_VERSION' include/config.h | cut -d'"' -f2)
+        VERSION=$(grep '#define CURRENT_VERSION' include/config.h | cut -d'"' -f2)
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Version: $VERSION"
         
