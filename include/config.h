@@ -21,7 +21,7 @@
 
 // Auto Update Configuration
 // Note: GitHub repository URL is hardcoded in firmware for persistence after OTA updates
-#define CURRENT_VERSION "v0.0.5"    // Firmware version
+#define CURRENT_VERSION "0.0.6"    // Firmware version
 #define UPDATE_CHECK_INTERVAL 3600000 // Check every hour (in milliseconds)
 
 // LED Configuration for WS2812 LEDs - Configurable via web interface
