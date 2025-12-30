@@ -47,7 +47,7 @@ static const WordMapping HOUR_WORDS[] = {
     {"DREI", 53, 4, false},    // Row 6: DREI (73-76)
     {"VIER", 27, 4, false},    // Row 8: VIER (91-94)
     {"FÜNF", 58, 4, false},    // Row 5: FÜNF (61-64)
-    {"SECHS", 20, 5, false},   // Row 9: SECHS (99-103)
+    {"SECHS", 19, 5, false},   // Row 9: SECHS (99-103)
     {"SIEBEN", 35, 6, false},  // Row 7: SIEBEN (82-87)
     {"ACHT", 31, 4, false},    // Row 8: ACHT (95-98)
     {"NEUN", 49, 4, false},    // Row 6: NEUN (67-70) - inside ZEHNEUNDREI
