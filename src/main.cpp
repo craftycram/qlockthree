@@ -86,9 +86,9 @@ void setup() {
             ledController.setTimeOTAStatusLED(0); // Turn off if sync succeeded
         }
         
-        // Initialize OTA Manager
-        otaManager.begin(OTA_HOSTNAME);
-        // Optional: otaManager.begin(OTA_HOSTNAME, OTA_PASSWORD);
+        // Initialize OTA Manager with LED controller for progress feedback
+        otaManager.begin(OTA_HOSTNAME, nullptr, &ledController);
+        // Optional: otaManager.begin(OTA_HOSTNAME, OTA_PASSWORD, &ledController);
         
         // Initialize Auto Updater with LED controller for feedback
         autoUpdater.begin("craftycram/qlockthree", CURRENT_VERSION, UPDATE_CHECK_INTERVAL, &ledController);
