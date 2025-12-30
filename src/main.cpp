@@ -322,10 +322,11 @@ void loop() {
             struct tm currentTime = timeManager.getCurrentTime();
             int hours = currentTime.tm_hour;
             int minutes = currentTime.tm_min;
+            int weekday = currentTime.tm_wday;  // 0=Sunday, 1=Monday, ..., 6=Saturday
             
-            // Show time on qlockthree LEDs
+            // Show time on qlockthree LEDs WITH weekday
             if (ledController.getCurrentPattern() == LEDPattern::CLOCK_DISPLAY) {
-                ledController.showTime(hours, minutes);
+                ledController.showTime(hours, minutes, weekday);
             }
         }
         

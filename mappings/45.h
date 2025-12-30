@@ -1,6 +1,19 @@
 #ifndef MAPPING_45_H
 #define MAPPING_45_H
 
+#include <stdint.h>
+
+// Word mapping structure - shared across ALL mappings (global scope)
+struct WordMapping {
+    const char* word;
+    uint8_t start_led;
+    uint8_t length;
+    bool active;
+};
+
+// Wrap everything mapping-specific in a namespace to avoid symbol conflicts
+namespace Mapping45 {
+
 // qlockthree 11x11 Layout Mapping Configuration
 // This file defines the word-to-LED mappings for the 45cm qlockthree with 11x11 layout
 // Layout:
@@ -16,22 +29,12 @@
 // Row 9: SECHSIUHRYE (99-109)
 // Row 10: MDMDFSS + 4 corner dots (110-120 + corners)
 
-#include <stdint.h>
-
 // Mapping metadata
 #define MAPPING_NAME "45cm qlockthree 11x11"
 #define MAPPING_ID "45cm"
 #define MAPPING_LANGUAGE "DE"
 #define MAPPING_TOTAL_LEDS 125
 #define MAPPING_DESCRIPTION "45cm German qlockthree with 11x11 grid, weekdays, and 4 corner dots"
-
-// Word mapping structure
-struct WordMapping {
-    const char* word;
-    uint8_t start_led;
-    uint8_t length;
-    bool active;
-};
 
 // Time word mappings - Base words always shown
 static const WordMapping BASE_WORDS[] = {
@@ -75,9 +78,9 @@ static const WordMapping CONNECTOR_WORDS[] = {
 // Minute dots for precise time (corner LEDs based on 125 LED total)
 static const uint8_t MINUTE_DOTS[] = {124, 123, 12, 0}; // corner positions from image
 
-// Status LED configuration
-#define STATUS_LED_WIFI 11      // WiFi status LED (index 11)
-#define STATUS_LED_SYSTEM 10    // System/NTP/OTA/Update status LED (index 10)
+// Status LED configuration (using constexpr instead of #define to work with namespaces)
+static constexpr uint8_t STATUS_LED_WIFI = 11;      // WiFi status LED (index 11)
+static constexpr uint8_t STATUS_LED_SYSTEM = 10;    // System/NTP/OTA/Update status LED (index 10)
 
 // Startup animation sequence (0-based array indices)
 static const uint8_t STARTUP_SEQUENCE[] = {
@@ -105,7 +108,8 @@ static const uint8_t STARTUP_SEQUENCE[] = {
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
 };
 
-#define STARTUP_SEQUENCE_LENGTH (sizeof(STARTUP_SEQUENCE) / sizeof(STARTUP_SEQUENCE[0]))
+// Calculate sequence length (using constexpr instead of #define to work with namespaces)
+static constexpr uint16_t STARTUP_SEQUENCE_LENGTH = sizeof(STARTUP_SEQUENCE) / sizeof(STARTUP_SEQUENCE[0]);
 
 // Weekday mappings (Bottom row: M D M D F S S)
 static const WordMapping WEEKDAY_WORDS[] = {
@@ -185,5 +189,7 @@ inline uint8_t getWeekdayIndex(uint8_t weekday) {
 inline bool shouldShowWeekday() {
     return true; // Can be made configurable via web interface
 }
+
+} // namespace Mapping45
 
 #endif // MAPPING_45_H

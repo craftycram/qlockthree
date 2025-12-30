@@ -34,6 +34,7 @@ public:
     
     // qlockthree specific functions
     void showTime(int hours, int minutes);
+    void showTime(int hours, int minutes, int weekday);
     void showSetupMode();
     void showUpdateMode();
     void showWiFiConnecting();

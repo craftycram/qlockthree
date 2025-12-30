@@ -234,10 +234,14 @@ void LEDController::setSpeed(uint8_t speedValue) {
 }
 
 void LEDController::showTime(int hours, int minutes) {
+    showTime(hours, minutes, 0); // Default to Sunday if weekday not provided
+}
+
+void LEDController::showTime(int hours, int minutes, int weekday) {
     setPattern(LEDPattern::CLOCK_DISPLAY);
     
-    // Use mapping manager to calculate time display
-    mappingManager.calculateTimeDisplay((uint8_t)hours, (uint8_t)minutes, ledStates);
+    // Use mapping manager to calculate time display WITH weekday
+    mappingManager.calculateTimeDisplayWithWeekday((uint8_t)hours, (uint8_t)minutes, (uint8_t)weekday, ledStates);
     
     // Apply LED states to actual LEDs - status LEDs will override in update()
     for (int i = 0; i < numLeds; i++) {
