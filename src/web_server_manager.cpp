@@ -82,12 +82,7 @@ void WebServerManager::setupRoutes() {
             }
         }
         
-        if (server.hasArg("num_leds")) {
-            int numLeds = server.arg("num_leds").toInt();
-            if (numLeds > 0 && numLeds <= 500) {
-                ledController->setNumLeds(numLeds);
-            }
-        }
+        // LED count is now determined by mapping, not manually configured
         
         // ENHANCED: Color configuration support
         if (server.hasArg("color_r") && server.hasArg("color_g") && server.hasArg("color_b")) {
@@ -608,12 +603,7 @@ String WebServerManager::getLEDConfigHTML() {
     html += "updateClockColor(color);";
     html += "}";
     
-    html += "function updateNumLeds(){";
-    html += "const val=document.getElementById('num-leds').value;";
-    html += "if(confirm('Changing LED count requires restart. Continue?')){";
-    html += "sendConfig('num_leds',val);";
-    html += "}";
-    html += "}";
+    // LED count is now determined by mapping, not manually configured
     
     html += "function testPattern(pattern){";
     html += "fetch('/led/test',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'pattern='+pattern}).then(r=>r.text()).then(data=>{";
@@ -729,11 +719,10 @@ String WebServerManager::getLEDConfigHTML() {
         html += "</div>";
         
         html += "<div class='control-group'>";
-        html += "<h3>🔢 LED Configuration</h3>";
-        html += "<label for='num-leds'>Number of LEDs:</label>";
-        html += "<input type='number' id='num-leds' min='1' max='500' value='" + String(ledController->getNumLeds()) + "'>";
-        html += "<button onclick='updateNumLeds()' class='button'>Update LED Count</button>";
-        html += "<p><small>Current: " + String(ledController->getNumLeds()) + " LEDs on GPIO pin " + String(ledController->getDataPin()) + "</small></p>";
+        html += "<h3>🔢 LED Information</h3>";
+        html += "<p><strong>LED Count:</strong> " + String(ledController->getNumLeds()) + " LEDs</p>";
+        html += "<p><strong>Data Pin:</strong> GPIO " + String(ledController->getDataPin()) + "</p>";
+        html += "<p><small><em>Note: LED count is automatically set by the selected mapping. Use <a href='/led/mapping'>LED Mapping</a> to change the layout.</em></small></p>";
         html += "</div>";
         
         html += "<div class='control-group'>";

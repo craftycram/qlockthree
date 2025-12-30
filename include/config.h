@@ -26,9 +26,9 @@
 
 // LED Configuration for WS2812 LEDs - Configurable via web interface
 #define LED_DATA_PIN 2        // GPIO pin for LED data (ESP32-C3 compatible)
-#define LED_NUM_LEDS 125      // 45cm qlockthree: 11x11 grid + weekdays + 4 corner dots
 #define LED_BRIGHTNESS 128    // Default brightness (0-255, 50% brightness)
 #define LED_ANIMATION_SPEED 50 // Default animation speed (0-255)
+// NOTE: LED count is determined by the selected mapping, not configured here
 
 // qlockthree LED Layout - Customize for your specific word grid
 #define LED_REVERSE_ORDER false     // Reverse LED strip direction if needed

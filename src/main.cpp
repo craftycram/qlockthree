@@ -18,7 +18,8 @@ TimeManager timeManager;
 
 void setup() {
     // Initialize LED Controller FIRST to ensure threading starts immediately
-    ledController.begin(LED_DATA_PIN, LED_NUM_LEDS, LED_BRIGHTNESS);
+    // LED count will be set by the mapping manager during initialization
+    ledController.begin(LED_DATA_PIN, 125, LED_BRIGHTNESS); // Default count, will be updated by mapping
     ledController.setSpeed(LED_ANIMATION_SPEED);
     
     // Initialize Serial Monitor after LED controller threading is ready
