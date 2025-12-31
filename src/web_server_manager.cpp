@@ -137,6 +137,8 @@ void WebServerManager::setupRoutes() {
     server.on("/dev/status", [this]() { handleDevStatus(); });
     server.on("/dev/set", HTTP_POST, [this]() { handleDevSet(); });
     server.on("/dev/toggle", HTTP_POST, [this]() { handleDevToggle(); });
+    server.on("/dev/reboot", HTTP_POST, [this]() { handleReboot(); });
+    server.on("/dev/factory-reset", HTTP_POST, [this]() { handleFactoryReset(); });
 }
 
 void WebServerManager::handleRoot() {
@@ -972,6 +974,41 @@ void WebServerManager::handleDevToggle() {
     server.send(200, "text/plain", *debugModeEnabled ? "enabled" : "disabled");
 }
 
+void WebServerManager::handleReboot() {
+    Serial.println("Reboot requested via web interface");
+    server.send(200, "text/plain", "Rebooting...");
+    delay(500);
+    ESP.restart();
+}
+
+void WebServerManager::handleFactoryReset() {
+    Serial.println("Factory reset requested via web interface");
+
+    // Clear all preference namespaces
+    Preferences prefs;
+
+    prefs.begin("led_mapping", false);
+    prefs.clear();
+    prefs.end();
+
+    prefs.begin("led_config", false);
+    prefs.clear();
+    prefs.end();
+
+    prefs.begin("time_manager", false);
+    prefs.clear();
+    prefs.end();
+
+    prefs.begin("qlockthree", false);
+    prefs.clear();
+    prefs.end();
+
+    Serial.println("All settings cleared");
+    server.send(200, "text/plain", "Factory reset complete. Rebooting...");
+    delay(500);
+    ESP.restart();
+}
+
 String WebServerManager::getDevStatusJSON() {
     String json = "{";
     json += "\"enabled\":" + String(debugModeEnabled && *debugModeEnabled ? "true" : "false") + ",";
@@ -1014,6 +1051,8 @@ String WebServerManager::getDevPageHTML() {
     html += ".button.primary { background: #4361ee; color: white; }";
     html += ".button.toggle { background: #f72585; color: white; }";
     html += ".button.back { background: #444; color: white; }";
+    html += ".button.warning { background: #f59e0b; color: white; }";
+    html += ".button.danger { background: #dc2626; color: white; }";
     html += ".buttons { text-align: center; margin-top: 20px; }";
     html += ".info { margin-top: 15px; padding: 10px; background: #0f0f23; border-radius: 4px; text-align: center; }";
     html += ".info .label { color: #888; font-size: 0.9em; }";
@@ -1056,6 +1095,15 @@ String WebServerManager::getDevPageHTML() {
     html += "<button class='button toggle' onclick='toggle()' id='toggleBtn'>" + String(enabled ? "Disable" : "Enable") + "</button>";
     html += "</div>";
 
+    // System controls
+    html += "<div class='group' style='margin-top:30px'>";
+    html += "<label style='text-align:center'>System Controls:</label>";
+    html += "<div class='buttons'>";
+    html += "<button class='button warning' onclick='reboot()'>Reboot</button>";
+    html += "<button class='button danger' onclick='factoryReset()'>Factory Reset</button>";
+    html += "</div>";
+    html += "</div>";
+
     html += "<div class='buttons'>";
     html += "<a href='/' class='button back'>Back to Home</a>";
     html += "</div>";
@@ -1084,6 +1132,18 @@ String WebServerManager::getDevPageHTML() {
     html += "}";
     html += "function toggle() {";
     html += "  fetch('/dev/toggle',{method:'POST'}).then(()=>updateStatus());";
+    html += "}";
+    html += "function reboot() {";
+    html += "  if(confirm('Reboot the clock?')) {";
+    html += "    fetch('/dev/reboot',{method:'POST'});";
+    html += "    document.body.innerHTML='<div style=\"text-align:center;padding:50px;color:#fff\"><h2>Rebooting...</h2><p>Please wait</p></div>';";
+    html += "  }";
+    html += "}";
+    html += "function factoryReset() {";
+    html += "  if(confirm('WARNING: This will delete ALL settings including WiFi credentials.\\n\\nAre you sure you want to factory reset?')) {";
+    html += "    fetch('/dev/factory-reset',{method:'POST'});";
+    html += "    document.body.innerHTML='<div style=\"text-align:center;padding:50px;color:#fff\"><h2>Factory Reset...</h2><p>All settings cleared. Rebooting...</p></div>';";
+    html += "  }";
     html += "}";
     html += "updateStatus();";
     html += "setInterval(updateStatus,1000);";

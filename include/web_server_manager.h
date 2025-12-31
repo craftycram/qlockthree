@@ -59,6 +59,8 @@ private:
     void handleDevStatus();
     void handleDevSet();
     void handleDevToggle();
+    void handleReboot();
+    void handleFactoryReset();
 
     // HTML/JSON generators
     String getStatusHTML();
