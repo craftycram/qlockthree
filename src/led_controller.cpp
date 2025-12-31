@@ -54,8 +54,17 @@ void LEDController::begin(int pin, int numLedsCount, int brightnessValue) {
     leds = new CRGB[numLeds];
     ledStates = new bool[numLeds];
     
+    // Initialize ledStates array to all false
+    Serial.println("DEBUG: Initializing ledStates array to all false...");
+    for (int i = 0; i < numLeds; i++) {
+        ledStates[i] = false;
+    }
+    Serial.printf("DEBUG: ledStates array initialized - all %d LEDs set to false\n", numLeds);
+    
     // Initialize mapping manager
+    Serial.println("DEBUG: Initializing LED mapping manager...");
     mappingManager.begin();
+    Serial.println("DEBUG: LED mapping manager initialization complete");
     
     // Initialize FastLED with GRB color order (correct for your WS2812 strips)
     FastLED.addLeds<WS2812, 0, GRB>(leds, numLeds).setCorrection(TypicalLEDStrip);
@@ -238,10 +247,31 @@ void LEDController::showTime(int hours, int minutes) {
 }
 
 void LEDController::showTime(int hours, int minutes, int weekday) {
+    Serial.printf("DEBUG: showTime called - %02d:%02d, weekday %d\n", hours, minutes, weekday);
+    
     setPattern(LEDPattern::CLOCK_DISPLAY);
     
     // Use mapping manager to calculate time display WITH weekday
     mappingManager.calculateTimeDisplayWithWeekday((uint8_t)hours, (uint8_t)minutes, (uint8_t)weekday, ledStates);
+    
+    // Debug: Count how many LEDs should be lit
+    int activeLEDs = 0;
+    for (int i = 0; i < numLeds; i++) {
+        if (ledStates[i]) {
+            activeLEDs++;
+        }
+    }
+    Serial.printf("DEBUG: Time calculation resulted in %d active LEDs out of %d\n", activeLEDs, numLeds);
+    
+    // Debug: If all LEDs are active, something is wrong
+    if (activeLEDs == numLeds) {
+        Serial.println("ERROR: All LEDs are active - mapping calculation error!");
+        // Print first few LED states for debugging
+        for (int i = 0; i < 20 && i < numLeds; i++) {
+            Serial.printf("LED[%d] = %s\n", i, ledStates[i] ? "ON" : "OFF");
+        }
+        return; // Don't apply the wrong mapping
+    }
     
     // Apply LED states to actual LEDs - status LEDs will override in update()
     for (int i = 0; i < numLeds; i++) {
@@ -252,6 +282,7 @@ void LEDController::showTime(int hours, int minutes, int weekday) {
         }
     }
     
+    Serial.printf("DEBUG: Applied time display pattern, showing %d lit LEDs\n", activeLEDs);
     FastLED.show();
 }
 
@@ -629,12 +660,19 @@ void LEDController::updateStatusLEDs() {
             lastWifiState = wifiStatusState;
         }
         
-        if (numLeds > wifiLEDIndex) {
+        // ONLY update the specific WiFi status LED (index 11)
+        if (wifiLEDIndex >= 0 && wifiLEDIndex < numLeds) {
             if (wifiStatusState == 0) {
-                // Off when connected
-                leds[wifiLEDIndex] = CRGB::Black;
+                // Off when connected - BUT preserve clock display if this LED is part of time
+                if (currentPattern == LEDPattern::CLOCK_DISPLAY && ledStates && ledStates[wifiLEDIndex]) {
+                    // This LED is part of the time display, keep it as solid color
+                    leds[wifiLEDIndex] = solidColor;
+                } else {
+                    // Not part of time display, turn it off
+                    leds[wifiLEDIndex] = CRGB::Black;
+                }
             } else if (wifiStatusState == 1) {
-                // Breathing cyan while connecting
+                // Breathing cyan while connecting - ALWAYS override clock display
                 uint8_t brightness = beatsin8(30); // 30 BPM breathing
                 leds[wifiLEDIndex] = CRGB::Cyan;
                 leds[wifiLEDIndex].fadeToBlackBy(255 - brightness);
@@ -647,7 +685,7 @@ void LEDController::updateStatusLEDs() {
                                  wifiLEDIndex, brightness);
                 }
             } else if (wifiStatusState == 2) {
-                // Breathing red while in AP mode
+                // Breathing red while in AP mode - ALWAYS override clock display
                 uint8_t brightness = beatsin8(30); // 30 BPM breathing
                 leds[wifiLEDIndex] = CRGB::Red;
                 leds[wifiLEDIndex].fadeToBlackBy(255 - brightness);
@@ -660,7 +698,9 @@ void LEDController::updateStatusLEDs() {
         
         // Get system status LED index from mapping
         int statusLEDIndex = mappingManager.getSystemStatusLED();
-        if (numLeds > statusLEDIndex) {
+        
+        // ONLY update the specific system status LED (index 10)
+        if (statusLEDIndex >= 0 && statusLEDIndex < numLeds) {
             // Priority: Update status > OTA status > NTP status
             if (updateStatusState > 0) {
                 if (updateStatusState == 1) {
@@ -680,7 +720,12 @@ void LEDController::updateStatusLEDs() {
                         bool shouldBeOn = ((statusLEDStep % 80) < 40); // On for first 40 steps (400ms)
                         leds[statusLEDIndex] = shouldBeOn ? CRGB::Green : CRGB::Black;
                     } else {
-                        leds[statusLEDIndex] = CRGB::Black;
+                        // Check if this LED is part of clock display before turning off
+                        if (currentPattern == LEDPattern::CLOCK_DISPLAY && ledStates && ledStates[statusLEDIndex]) {
+                            leds[statusLEDIndex] = solidColor; // Restore clock display
+                        } else {
+                            leds[statusLEDIndex] = CRGB::Black;
+                        }
                         updateStatusState = 0; // Reset after 3 flashes
                         statusLEDStep = 0;
                     }
@@ -691,7 +736,12 @@ void LEDController::updateStatusLEDs() {
                         bool shouldBeOn = ((statusLEDStep % 80) < 40); // On for first 40 steps (400ms)
                         leds[statusLEDIndex] = shouldBeOn ? CRGB::Red : CRGB::Black;
                     } else {
-                        leds[statusLEDIndex] = CRGB::Black;
+                        // Check if this LED is part of clock display before turning off
+                        if (currentPattern == LEDPattern::CLOCK_DISPLAY && ledStates && ledStates[statusLEDIndex]) {
+                            leds[statusLEDIndex] = solidColor; // Restore clock display
+                        } else {
+                            leds[statusLEDIndex] = CRGB::Black;
+                        }
                         updateStatusState = 0; // Reset after 3 flashes
                         statusLEDStep = 0;
                     }
@@ -702,8 +752,14 @@ void LEDController::updateStatusLEDs() {
             
             // Handle OTA/NTP status when update status is not active
             if (timeOTAStatusState == 0) {
-                // Off
-                leds[statusLEDIndex] = CRGB::Black;
+                // Off - BUT preserve clock display if this LED is part of time
+                if (currentPattern == LEDPattern::CLOCK_DISPLAY && ledStates && ledStates[statusLEDIndex]) {
+                    // This LED is part of the time display, keep it as solid color
+                    leds[statusLEDIndex] = solidColor;
+                } else {
+                    // Not part of time display, turn it off
+                    leds[statusLEDIndex] = CRGB::Black;
+                }
             } else if (timeOTAStatusState == 1) {
                 // Breathing cyan during OTA updates
                 uint8_t brightness = beatsin8(30); // 30 BPM breathing
@@ -716,7 +772,12 @@ void LEDController::updateStatusLEDs() {
                     bool shouldBeOn = ((statusLEDStep % 80) < 40); // On for first 40 steps (400ms)
                     leds[statusLEDIndex] = shouldBeOn ? CRGB::Green : CRGB::Black;
                 } else {
-                    leds[statusLEDIndex] = CRGB::Black;
+                    // Check if this LED is part of clock display before turning off
+                    if (currentPattern == LEDPattern::CLOCK_DISPLAY && ledStates && ledStates[statusLEDIndex]) {
+                        leds[statusLEDIndex] = solidColor; // Restore clock display
+                    } else {
+                        leds[statusLEDIndex] = CRGB::Black;
+                    }
                     timeOTAStatusState = 0; // Reset after 3 flashes
                     statusLEDStep = 0;
                 }
@@ -727,12 +788,17 @@ void LEDController::updateStatusLEDs() {
                     bool shouldBeOn = ((statusLEDStep % 80) < 40); // On for first 40 steps (400ms)
                     leds[statusLEDIndex] = shouldBeOn ? CRGB::Red : CRGB::Black;
                 } else {
-                    leds[statusLEDIndex] = CRGB::Black;
+                    // Check if this LED is part of clock display before turning off
+                    if (currentPattern == LEDPattern::CLOCK_DISPLAY && ledStates && ledStates[statusLEDIndex]) {
+                        leds[statusLEDIndex] = solidColor; // Restore clock display
+                    } else {
+                        leds[statusLEDIndex] = CRGB::Black;
+                    }
                     timeOTAStatusState = 0; // Reset after 3 flashes
                     statusLEDStep = 0;
                 }
             } else if (timeOTAStatusState == 4) {
-                // Breathing orange during NTP sync
+                // Breathing orange during NTP sync - ALWAYS override clock display
                 uint8_t brightness = beatsin8(30); // 30 BPM breathing
                 leds[statusLEDIndex] = CRGB::Orange;
                 leds[statusLEDIndex].fadeToBlackBy(255 - brightness);

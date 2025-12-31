@@ -46,11 +46,37 @@ void LEDMappingManager::begin() {
 }
 
 void LEDMappingManager::loadMapping(MappingType type) {
+    Serial.printf("MAPPING DEBUG: loadMapping called with type %d\n", (int)type);
+    
     // Load mapping directly using namespace + macro - no separate functions needed!
     switch (type) {
         case MappingType::MAPPING_45_GERMAN: {
+            Serial.println("MAPPING DEBUG: Loading 45cm German mapping...");
             using namespace Mapping45;
-            LOAD_MAPPING_FROM_HEADER();
+            
+            // Set mapping metadata
+            setMappingData(MAPPING_NAME, MAPPING_ID, MAPPING_DESCRIPTION, MAPPING_TOTAL_LEDS);
+            
+            // Set mapping arrays
+            setMappingArrays(BASE_WORDS, sizeof(BASE_WORDS)/sizeof(BASE_WORDS[0]),
+                            HOUR_WORDS, sizeof(HOUR_WORDS)/sizeof(HOUR_WORDS[0]),
+                            MINUTE_WORDS, sizeof(MINUTE_WORDS)/sizeof(MINUTE_WORDS[0]),
+                            CONNECTOR_WORDS, sizeof(CONNECTOR_WORDS)/sizeof(CONNECTOR_WORDS[0]),
+                            MINUTE_DOTS, sizeof(MINUTE_DOTS)/sizeof(MINUTE_DOTS[0]));
+            
+            // Set function pointers directly (explicit namespace resolution)
+            Serial.println("MAPPING DEBUG: Setting function pointers...");
+            shouldShowBaseWords = Mapping45::shouldShowBaseWords;
+            getHourWordIndex = Mapping45::getHourWordIndex;
+            getMinuteWordIndex = Mapping45::getMinuteWordIndex;
+            getConnectorWordIndex = Mapping45::getConnectorWordIndex;
+            getMinuteDots = Mapping45::getMinuteDots;
+            isHalfPast = Mapping45::isHalfPast;
+            
+            Serial.printf("MAPPING DEBUG: Function pointers set:\n");
+            Serial.printf("  shouldShowBaseWords: %p\n", shouldShowBaseWords);
+            Serial.printf("  getHourWordIndex: %p\n", getHourWordIndex);
+            Serial.printf("  getMinuteWordIndex: %p\n", getMinuteWordIndex);
         } break;
         
         case MappingType::MAPPING_110_GERMAN: {
@@ -70,6 +96,23 @@ void LEDMappingManager::loadMapping(MappingType type) {
     }
     
     Serial.printf("Loaded mapping: %s\n", getCurrentMappingName());
+    
+    // Debug: Check if function pointers were set correctly
+    Serial.printf("MAPPING DEBUG: After loading - function pointers:\n");
+    Serial.printf("  shouldShowBaseWords: %p\n", shouldShowBaseWords);
+    Serial.printf("  getHourWordIndex: %p\n", getHourWordIndex);
+    Serial.printf("  getMinuteWordIndex: %p\n", getMinuteWordIndex);
+    Serial.printf("  getConnectorWordIndex: %p\n", getConnectorWordIndex);
+    Serial.printf("  getMinuteDots: %p\n", getMinuteDots);
+    Serial.printf("  isHalfPast: %p\n", isHalfPast);
+    
+    // Debug: Check if word arrays were set correctly
+    Serial.printf("MAPPING DEBUG: Word arrays:\n");
+    Serial.printf("  baseWords: %p (count: %d)\n", baseWords, baseWordsCount);
+    Serial.printf("  hourWords: %p (count: %d)\n", hourWords, hourWordsCount);
+    Serial.printf("  minuteWords: %p (count: %d)\n", minuteWords, minuteWordsCount);
+    Serial.printf("  connectorWords: %p (count: %d)\n", connectorWords, connectorWordsCount);
+    Serial.printf("  minuteDotLEDs: %p (count: %d)\n", minuteDotLEDs, minuteDotCount);
 }
 
 void LEDMappingManager::setCustomMapping(const char* mappingId) {
@@ -85,41 +128,68 @@ void LEDMappingManager::setCustomMapping(const char* mappingId) {
 }
 
 void LEDMappingManager::calculateTimeDisplay(uint8_t hour, uint8_t minute, bool* ledStates) {
+    Serial.printf("MAPPING DEBUG: calculateTimeDisplay called with hour=%d, minute=%d\n", hour, minute);
+    
+    // Debug: Check what's missing
+    Serial.printf("MAPPING DEBUG: ledStates=%p, shouldShowBaseWords=%p, getHourWordIndex=%p, getMinuteWordIndex=%p\n", 
+                 ledStates, shouldShowBaseWords, getHourWordIndex, getMinuteWordIndex);
+    Serial.printf("MAPPING DEBUG: connectorWords=%p, baseWords=%p, hourWords=%p, minuteWords=%p\n",
+                 connectorWords, baseWords, hourWords, minuteWords);
+    
     if (!ledStates || !shouldShowBaseWords || !getHourWordIndex || !getMinuteWordIndex) {
+        Serial.println("MAPPING ERROR: Missing function pointers or ledStates array");
+        Serial.printf("MAPPING ERROR: ledStates null: %s\n", !ledStates ? "YES" : "NO");
+        Serial.printf("MAPPING ERROR: shouldShowBaseWords null: %s\n", !shouldShowBaseWords ? "YES" : "NO");
+        Serial.printf("MAPPING ERROR: getHourWordIndex null: %s\n", !getHourWordIndex ? "YES" : "NO");
+        Serial.printf("MAPPING ERROR: getMinuteWordIndex null: %s\n", !getMinuteWordIndex ? "YES" : "NO");
         return;
     }
     
     // Clear all LEDs first
     clearAllLEDs(ledStates);
+    Serial.println("MAPPING DEBUG: LED states cleared");
     
     // Always show base words ("ES IST")
     if (shouldShowBaseWords()) {
+        Serial.printf("MAPPING DEBUG: Showing base words (count: %d)\n", baseWordsCount);
         for (uint8_t i = 0; i < baseWordsCount; i++) {
+            Serial.printf("MAPPING DEBUG: Base word %d: '%s' at LED %d, length %d\n", 
+                         i, baseWords[i].word, baseWords[i].start_led, baseWords[i].length);
             illuminateWord(ledStates, baseWords[i]);
         }
     }
     
     // Show hour word
     uint8_t hourIndex = getHourWordIndex(hour, minute);
+    Serial.printf("MAPPING DEBUG: Hour index calculated as %d (max: %d)\n", hourIndex, hourWordsCount);
     if (hourIndex < hourWordsCount) {
+        Serial.printf("MAPPING DEBUG: Hour word: '%s' at LED %d, length %d\n", 
+                     hourWords[hourIndex].word, hourWords[hourIndex].start_led, hourWords[hourIndex].length);
         illuminateWord(ledStates, hourWords[hourIndex]);
     }
     
     // Show minute word
     int8_t minuteIndex = getMinuteWordIndex(minute);
+    Serial.printf("MAPPING DEBUG: Minute index calculated as %d (max: %d)\n", minuteIndex, minuteWordsCount);
     if (minuteIndex >= 0 && minuteIndex < minuteWordsCount) {
+        Serial.printf("MAPPING DEBUG: Minute word: '%s' at LED %d, length %d\n", 
+                     minuteWords[minuteIndex].word, minuteWords[minuteIndex].start_led, minuteWords[minuteIndex].length);
         illuminateWord(ledStates, minuteWords[minuteIndex]);
     }
     
     // Show connector word
     int8_t connectorIndex = getConnectorWordIndex(minute);
+    Serial.printf("MAPPING DEBUG: Connector index calculated as %d (max: %d)\n", connectorIndex, connectorWordsCount);
     if (connectorIndex >= 0 && connectorIndex < connectorWordsCount) {
+        Serial.printf("MAPPING DEBUG: Connector word: '%s' at LED %d, length %d\n", 
+                     connectorWords[connectorIndex].word, connectorWords[connectorIndex].start_led, connectorWords[connectorIndex].length);
         illuminateWord(ledStates, connectorWords[connectorIndex]);
     }
     
     // Show minute dots (for precise minutes 1-4)
     if (getMinuteDots) {
         uint8_t dots = getMinuteDots(minute);
+        Serial.printf("MAPPING DEBUG: Minute dots: %d\n", dots);
         illuminateMinuteDots(ledStates, dots);
     }
 }
@@ -213,14 +283,14 @@ void LEDMappingManager::saveCurrentMapping() {
 }
 
 void LEDMappingManager::loadSavedMapping() {
-    uint8_t savedType = preferences.getUChar("mapping_type", (uint8_t)MappingType::MAPPING_110_GERMAN);
+    uint8_t savedType = preferences.getUChar("mapping_type", (uint8_t)MappingType::MAPPING_45_GERMAN);
     MappingType type = (MappingType)savedType;
     
     if (isValidMapping(type)) {
         loadMapping(type);
     } else {
-        // Fallback to default
-        loadMapping(MappingType::MAPPING_110_GERMAN);
+        // Fallback to default - use the implemented 45cm mapping
+        loadMapping(MappingType::MAPPING_45_GERMAN);
     }
     
     Serial.printf("Loaded saved mapping: %s\n", getCurrentMappingName());
