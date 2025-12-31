@@ -52,6 +52,7 @@ private:
     void handleLEDPattern();
     void handleLEDMapping();
     void handleSetLEDMapping();
+    void handleSetRotation();
 
     // Debug mode handlers
     void handleDevPage();

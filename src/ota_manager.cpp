@@ -97,30 +97,29 @@ void OTAManager::showOTAProgress(unsigned int progress, unsigned int total) {
         return;
     }
     
-    const uint8_t* ledSequence = mappingManager->getStartupSequence();
     const uint16_t totalSequenceLEDs = mappingManager->getStartupSequenceLength();
-    
-    if (!ledSequence || totalSequenceLEDs == 0) {
+
+    if (totalSequenceLEDs == 0) {
         Serial.println("OTA: No startup sequence defined in mapping for progress display");
         return;
     }
-    
+
     // Calculate how many LEDs should be lit based on upload progress
     float progressRatio = (float)progress / (float)total;
     int ledsToLight = (int)(progressRatio * totalSequenceLEDs);
-    
+
     // Disable status LED system temporarily to take control
     ledController->setStatusLEDsEnabled(false);
-    
+
     // Clear all LEDs first
     for (int i = 0; i < ledController->getNumLeds(); i++) {
         ledController->setPixelThreadSafe(i, CRGB::Black);
     }
-    
-    // Light LEDs in sequence with cyan color to show progress
+
+    // Light LEDs in sequence with cyan color to show progress (using transformed indices for rotation)
     for (int i = 0; i < ledsToLight && i < totalSequenceLEDs; i++) {
-        int arrayIndex = ledSequence[i];
-        
+        int arrayIndex = mappingManager->getTransformedStartupLED(i);
+
         if (arrayIndex >= 0 && arrayIndex < ledController->getNumLeds()) {
             ledController->setPixelThreadSafe(arrayIndex, CRGB::Cyan); // Cyan for OTA progress
         }
@@ -168,28 +167,27 @@ void OTAManager::showOTAComplete() {
         return;
     }
     
-    const uint8_t* ledSequence = mappingManager->getStartupSequence();
     const uint16_t totalSequenceLEDs = mappingManager->getStartupSequenceLength();
-    
-    if (!ledSequence || totalSequenceLEDs == 0) {
+
+    if (totalSequenceLEDs == 0) {
         return;
     }
-    
+
     // Flash all progress LEDs green 3 times to show completion
     for (int flash = 0; flash < 3; flash++) {
-        // Light all LEDs green
+        // Light all LEDs green (using transformed indices for rotation)
         for (int i = 0; i < totalSequenceLEDs; i++) {
-            int arrayIndex = ledSequence[i];
+            int arrayIndex = mappingManager->getTransformedStartupLED(i);
             if (arrayIndex >= 0 && arrayIndex < ledController->getNumLeds()) {
                 ledController->setPixelThreadSafe(arrayIndex, CRGB::Green);
             }
         }
         ledController->showThreadSafe();
         delay(300);
-        
+
         // Turn off all LEDs
         for (int i = 0; i < totalSequenceLEDs; i++) {
-            int arrayIndex = ledSequence[i];
+            int arrayIndex = mappingManager->getTransformedStartupLED(i);
             if (arrayIndex >= 0 && arrayIndex < ledController->getNumLeds()) {
                 ledController->setPixelThreadSafe(arrayIndex, CRGB::Black);
             }

@@ -426,35 +426,34 @@ void LEDController::updateStartupAnimation() {
     // Clear all LEDs first
     clear();
     
-    // Get startup sequence from mapping manager
-    const uint8_t* ledSequence = mappingManager.getStartupSequence();
+    // Get startup sequence length from mapping manager
     const uint16_t totalSequenceLEDs = mappingManager.getStartupSequenceLength();
-    
-    if (!ledSequence || totalSequenceLEDs == 0) {
+
+    if (totalSequenceLEDs == 0) {
         Serial.println("STARTUP DEBUG: No startup sequence defined in mapping");
         return;
     }
-    
+
     // Calculate how many LEDs should be lit based on time elapsed
     float progress = (float)elapsed / (float)animationDuration;
     int ledsToLight = (int)(progress * totalSequenceLEDs);
-    
+
     // Debug: Log animation progress
     static unsigned long lastProgressDebug = 0;
     if (millis() - lastProgressDebug > 200) { // Debug every 200ms
         lastProgressDebug = millis();
-        Serial.printf("STARTUP DEBUG: elapsed=%lu, progress=%.2f, ledsToLight=%d/%d\n", 
+        Serial.printf("STARTUP DEBUG: elapsed=%lu, progress=%.2f, ledsToLight=%d/%d\n",
                      elapsed, progress, ledsToLight, totalSequenceLEDs);
     }
-    
-    // Light LEDs in sequence with rainbow colors
+
+    // Light LEDs in sequence with rainbow colors (using transformed indices for rotation)
     for (int i = 0; i < ledsToLight && i < totalSequenceLEDs; i++) {
         // Calculate rainbow hue based on position in sequence
         uint8_t hue = (i * 255) / totalSequenceLEDs;
-        
-        // Get array index directly (already 0-based)
-        int arrayIndex = ledSequence[i];
-        
+
+        // Get transformed LED index (applies rotation)
+        int arrayIndex = mappingManager.getTransformedStartupLED(i);
+
         // Set the LED with rainbow color
         if (arrayIndex >= 0 && arrayIndex < numLeds) {
             leds[arrayIndex] = CHSV(hue, 255, 255); // Full saturation and brightness

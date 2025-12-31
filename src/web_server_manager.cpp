@@ -62,6 +62,7 @@ void WebServerManager::setupRoutes() {
     server.on("/led/pattern", HTTP_POST, [this]() { handleLEDPattern(); });
     server.on("/led/mapping", [this]() { handleLEDMapping(); });
     server.on("/led/mapping/set", HTTP_POST, [this]() { handleSetLEDMapping(); });
+    server.on("/led/rotation/set", HTTP_POST, [this]() { handleSetRotation(); });
     
     // ENHANCED: Add color configuration support
     server.on("/led/config", HTTP_POST, [this]() { 
@@ -796,6 +797,11 @@ void WebServerManager::handleLEDMapping() {
     html += "    setTimeout(() => location.reload(), 1000);";
     html += "  }";
     html += "}";
+    html += "function setRotation() {";
+    html += "  const rotation = document.getElementById('rotation-select').value;";
+    html += "  fetch('/led/rotation/set', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'degrees=' + rotation});";
+    html += "  setTimeout(() => location.reload(), 500);";
+    html += "}";
     html += "</script>";
     
     html += "</head><body>";
@@ -824,9 +830,25 @@ void WebServerManager::handleLEDMapping() {
         html += "</select>";
         html += "<button onclick='setMapping()' class='button mapping-btn'>Apply Mapping</button>";
         html += "</div>";
-        
+
+        // Rotation selection
+        uint16_t currentRotation = mappingManager->getRotationDegrees();
         html += "<div class='mapping-group'>";
-        html += "<h3>ℹ️ Mapping Information</h3>";
+        html += "<h3>Display Rotation</h3>";
+        html += "<div class='info'><strong>Current Rotation:</strong> " + String(currentRotation) + "&deg;</div>";
+        html += "<label for='rotation-select'>Rotate Clock Face:</label>";
+        html += "<select id='rotation-select'>";
+        html += "<option value='0'" + String(currentRotation == 0 ? " selected" : "") + ">0&deg; (Normal)</option>";
+        html += "<option value='90'" + String(currentRotation == 90 ? " selected" : "") + ">90&deg; Clockwise</option>";
+        html += "<option value='180'" + String(currentRotation == 180 ? " selected" : "") + ">180&deg; (Upside Down)</option>";
+        html += "<option value='270'" + String(currentRotation == 270 ? " selected" : "") + ">270&deg; Clockwise</option>";
+        html += "</select>";
+        html += "<button onclick='setRotation()' class='button mapping-btn'>Apply Rotation</button>";
+        html += "<p style='margin-top:10px;color:#666;font-size:0.9em'>Use this if your clock is mounted rotated from its default orientation.</p>";
+        html += "</div>";
+
+        html += "<div class='mapping-group'>";
+        html += "<h3>Mapping Information</h3>";
         html += "<p><strong>45-LED German Layout:</strong> Compact design with 45 LEDs arranged in a smaller grid. Perfect for space-constrained installations.</p>";
         html += "<p><strong>110-LED German Layout:</strong> Standard 11×10 grid layout providing full German word clock functionality with all time expressions.</p>";
         html += "<p><strong>Note:</strong> Changing the mapping will automatically adjust the LED count to match the selected layout.</p>";
@@ -876,6 +898,34 @@ void WebServerManager::handleSetLEDMapping() {
         Serial.printf("LED mapping changed via web interface to type %d\n", mappingType);
     } else {
         server.send(400, "text/plain", "Missing mapping type parameter");
+    }
+}
+
+void WebServerManager::handleSetRotation() {
+    if (!ledController) {
+        server.send(500, "text/plain", "LED controller not available");
+        return;
+    }
+
+    LEDMappingManager* mappingManager = ledController->getMappingManager();
+    if (!mappingManager) {
+        server.send(500, "text/plain", "Mapping manager not available");
+        return;
+    }
+
+    if (server.hasArg("degrees")) {
+        int degrees = server.arg("degrees").toInt();
+
+        if (degrees == 0 || degrees == 90 || degrees == 180 || degrees == 270) {
+            mappingManager->setRotationDegrees(degrees);
+            mappingManager->saveRotation();
+            server.send(200, "text/plain", "Rotation set to " + String(degrees) + " degrees");
+            Serial.printf("Rotation changed via web interface to %d degrees\n", degrees);
+        } else {
+            server.send(400, "text/plain", "Invalid rotation value. Use 0, 90, 180, or 270.");
+        }
+    } else {
+        server.send(400, "text/plain", "Missing degrees parameter");
     }
 }
 

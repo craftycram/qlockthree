@@ -15,6 +15,7 @@
                        getConnectorWordIndex, getMinuteDots, isHalfPast)
 
 LEDMappingManager::LEDMappingManager() :
+    rotationDegrees(0),
     currentMappingType(MappingType::MAPPING_45_GERMAN),
     currentMappingName(nullptr),
     currentMappingId(nullptr),
@@ -42,9 +43,17 @@ LEDMappingManager::LEDMappingManager() :
 void LEDMappingManager::begin() {
     preferences.begin("led_mapping", false);
     loadSavedMapping();
-    
+
+    // Load saved rotation
+    rotationDegrees = preferences.getUShort("rotation", 0);
+    // Validate rotation value
+    if (rotationDegrees != 0 && rotationDegrees != 90 && rotationDegrees != 180 && rotationDegrees != 270) {
+        rotationDegrees = 0;
+    }
+
     Serial.println("LED Mapping Manager initialized");
     Serial.printf("Current mapping: %s (%s)\n", getCurrentMappingName(), getCurrentMappingId());
+    Serial.printf("Rotation: %d degrees\n", rotationDegrees);
 }
 
 void LEDMappingManager::loadMapping(MappingType type) {
@@ -283,22 +292,24 @@ void LEDMappingManager::illuminateWord(bool* ledStates, const WordMapping& word)
 
 void LEDMappingManager::illuminateRange(bool* ledStates, uint8_t startLed, uint8_t length) {
     if (!ledStates) return;
-    
+
     for (uint8_t i = 0; i < length; i++) {
-        uint16_t ledIndex = startLed + i;
-        if (ledIndex < currentMappingLEDCount) {
-            ledStates[ledIndex] = true;
+        uint8_t originalIndex = startLed + i;
+        uint8_t transformedIndex = transformLedIndex(originalIndex);
+        if (transformedIndex < currentMappingLEDCount) {
+            ledStates[transformedIndex] = true;
         }
     }
 }
 
 void LEDMappingManager::illuminateMinuteDots(bool* ledStates, uint8_t numDots) {
     if (!ledStates || !minuteDotLEDs || numDots == 0) return;
-    
+
     for (uint8_t i = 0; i < numDots && i < minuteDotCount; i++) {
-        uint16_t ledIndex = minuteDotLEDs[i];
-        if (ledIndex < currentMappingLEDCount) {
-            ledStates[ledIndex] = true;
+        uint8_t originalIndex = minuteDotLEDs[i];
+        uint8_t transformedIndex = transformLedIndex(originalIndex);
+        if (transformedIndex < currentMappingLEDCount) {
+            ledStates[transformedIndex] = true;
         }
     }
 }
@@ -375,29 +386,41 @@ String LEDMappingManager::getAvailableMappingsJSON() const {
 
 // Status LED and startup sequence configuration
 uint8_t LEDMappingManager::getWiFiStatusLED() const {
+    uint8_t led;
     switch (currentMappingType) {
         case MappingType::MAPPING_45_GERMAN:
-            return Mapping45::STATUS_LED_WIFI;
+            led = Mapping45::STATUS_LED_WIFI;
+            break;
         case MappingType::MAPPING_45BW_GERMAN:
-            return Mapping45BW::STATUS_LED_WIFI;
+            led = Mapping45BW::STATUS_LED_WIFI;
+            break;
         case MappingType::MAPPING_110_GERMAN:
-            return 11;
+            led = 11;
+            break;
         default:
-            return 11;
+            led = 11;
+            break;
     }
+    return transformLedIndex(led);
 }
 
 uint8_t LEDMappingManager::getSystemStatusLED() const {
+    uint8_t led;
     switch (currentMappingType) {
         case MappingType::MAPPING_45_GERMAN:
-            return Mapping45::STATUS_LED_SYSTEM;
+            led = Mapping45::STATUS_LED_SYSTEM;
+            break;
         case MappingType::MAPPING_45BW_GERMAN:
-            return Mapping45BW::STATUS_LED_SYSTEM;
+            led = Mapping45BW::STATUS_LED_SYSTEM;
+            break;
         case MappingType::MAPPING_110_GERMAN:
-            return 10;
+            led = 10;
+            break;
         default:
-            return 10;
+            led = 10;
+            break;
     }
+    return transformLedIndex(led);
 }
 
 const uint8_t* LEDMappingManager::getStartupSequence() const {
@@ -424,6 +447,17 @@ uint16_t LEDMappingManager::getStartupSequenceLength() const {
         default:
             return Mapping45::STARTUP_SEQUENCE_LENGTH;
     }
+}
+
+uint8_t LEDMappingManager::getTransformedStartupLED(uint16_t sequenceIndex) const {
+    const uint8_t* sequence = getStartupSequence();
+    uint16_t length = getStartupSequenceLength();
+
+    if (!sequence || sequenceIndex >= length) {
+        return 0;
+    }
+
+    return transformLedIndex(sequence[sequenceIndex]);
 }
 
 // Helper functions
@@ -464,4 +498,187 @@ void LEDMappingManager::setMappingFunctions(bool (*showBase)(),
     getConnectorWordIndex = connectorIndex;
     getMinuteDots = minuteDots;
     isHalfPast = halfPast;
+}
+
+// Rotation functions
+uint16_t LEDMappingManager::getRotationDegrees() const {
+    return rotationDegrees;
+}
+
+void LEDMappingManager::setRotationDegrees(uint16_t degrees) {
+    if (degrees == 0 || degrees == 90 || degrees == 180 || degrees == 270) {
+        rotationDegrees = degrees;
+        Serial.printf("Rotation set to %d degrees\n", rotationDegrees);
+    }
+}
+
+void LEDMappingManager::saveRotation() {
+    preferences.putUShort("rotation", rotationDegrees);
+    Serial.printf("Saved rotation: %d degrees\n", rotationDegrees);
+}
+
+// Coordinate transformation for rotation
+// The LED grid is 11x11 with serpentine wiring pattern:
+// - Row 0 (top): LEDs 112-122 (left to right)
+// - Row 1: LEDs 111-101 (right to left)
+// - Row 2: LEDs 90-100 (left to right)
+// - ... alternating ...
+// - Row 10 (bottom): LEDs 1-11 (left to right)
+// - Corner dots: 0 (bottom-left), 12 (bottom-right), 123 (top-right), 124 (top-left)
+
+void LEDMappingManager::indexToCoords(uint8_t ledIndex, int8_t& row, int8_t& col) const {
+    // Handle corner dots specially
+    if (ledIndex == 124) { row = -1; col = -1; return; }      // Top-left corner
+    if (ledIndex == 123) { row = -1; col = 11; return; }      // Top-right corner
+    if (ledIndex == 12)  { row = 11; col = 11; return; }      // Bottom-right corner
+    if (ledIndex == 0)   { row = 11; col = -1; return; }      // Bottom-left corner
+
+    // Main grid (LEDs 1-122, excluding corners)
+    // Row 0 starts at LED 112, each row has 11 LEDs
+    // Rows are numbered 0-10 from top to bottom
+    if (ledIndex >= 1 && ledIndex <= 122) {
+        // Calculate which row this LED is in
+        // Row 10 (bottom): LEDs 1-11
+        // Row 9: LEDs 13-23
+        // Row 8: LEDs 24-34
+        // Row 7: LEDs 35-45
+        // Row 6: LEDs 46-56
+        // Row 5: LEDs 57-67
+        // Row 4: LEDs 68-78
+        // Row 3: LEDs 79-89
+        // Row 2: LEDs 90-100
+        // Row 1: LEDs 101-111
+        // Row 0: LEDs 112-122
+
+        int rowFromBottom;
+        int posInRow;
+
+        if (ledIndex >= 112) {
+            rowFromBottom = 10;
+            posInRow = ledIndex - 112;
+        } else if (ledIndex >= 101) {
+            rowFromBottom = 9;
+            posInRow = 111 - ledIndex;  // Reversed
+        } else if (ledIndex >= 90) {
+            rowFromBottom = 8;
+            posInRow = ledIndex - 90;
+        } else if (ledIndex >= 79) {
+            rowFromBottom = 7;
+            posInRow = 89 - ledIndex;   // Reversed
+        } else if (ledIndex >= 68) {
+            rowFromBottom = 6;
+            posInRow = ledIndex - 68;
+        } else if (ledIndex >= 57) {
+            rowFromBottom = 5;
+            posInRow = 67 - ledIndex;   // Reversed
+        } else if (ledIndex >= 46) {
+            rowFromBottom = 4;
+            posInRow = ledIndex - 46;
+        } else if (ledIndex >= 35) {
+            rowFromBottom = 3;
+            posInRow = 45 - ledIndex;   // Reversed
+        } else if (ledIndex >= 24) {
+            rowFromBottom = 2;
+            posInRow = ledIndex - 24;
+        } else if (ledIndex >= 13) {
+            rowFromBottom = 1;
+            posInRow = 23 - ledIndex;   // Reversed
+        } else {  // 1-11
+            rowFromBottom = 0;
+            posInRow = ledIndex - 1;
+        }
+
+        row = 10 - rowFromBottom;  // Convert to row from top
+        col = posInRow;
+    } else {
+        // Invalid index, return center
+        row = 5;
+        col = 5;
+    }
+}
+
+uint8_t LEDMappingManager::coordsToIndex(int8_t row, int8_t col) const {
+    // Handle corner dots
+    if (row == -1 && col == -1) return 124;   // Top-left
+    if (row == -1 && col == 11) return 123;   // Top-right
+    if (row == 11 && col == 11) return 12;    // Bottom-right
+    if (row == 11 && col == -1) return 0;     // Bottom-left
+
+    // Clamp to valid grid range
+    if (row < 0) row = 0;
+    if (row > 10) row = 10;
+    if (col < 0) col = 0;
+    if (col > 10) col = 10;
+
+    int rowFromBottom = 10 - row;
+
+    // Calculate LED index based on row and serpentine pattern
+    switch (rowFromBottom) {
+        case 10: return 112 + col;           // Row 0: 112-122 (left to right)
+        case 9:  return 111 - col;           // Row 1: 111-101 (right to left)
+        case 8:  return 90 + col;            // Row 2: 90-100
+        case 7:  return 89 - col;            // Row 3: 89-79
+        case 6:  return 68 + col;            // Row 4: 68-78
+        case 5:  return 67 - col;            // Row 5: 67-57
+        case 4:  return 46 + col;            // Row 6: 46-56
+        case 3:  return 45 - col;            // Row 7: 45-35
+        case 2:  return 24 + col;            // Row 8: 24-34
+        case 1:  return 23 - col;            // Row 9: 23-13
+        case 0:  return 1 + col;             // Row 10: 1-11
+        default: return 1;
+    }
+}
+
+void LEDMappingManager::rotateCoords(int8_t& row, int8_t& col) const {
+    if (rotationDegrees == 0) return;
+
+    int8_t newRow, newCol;
+
+    // For corner dots, we need to handle the -1 and 11 positions
+    // The grid center is at (5, 5), but corners are outside the 0-10 range
+
+    switch (rotationDegrees) {
+        case 90:  // 90 degrees clockwise
+            newRow = col;
+            newCol = 10 - row;
+            // Adjust for corners
+            if (row == -1) newCol = 11;
+            if (row == 11) newCol = -1;
+            if (col == -1) newRow = -1;
+            if (col == 11) newRow = 11;
+            break;
+        case 180:
+            newRow = 10 - row;
+            newCol = 10 - col;
+            // Adjust for corners
+            if (row == -1) newRow = 11;
+            if (row == 11) newRow = -1;
+            if (col == -1) newCol = 11;
+            if (col == 11) newCol = -1;
+            break;
+        case 270: // 270 degrees clockwise (= 90 counter-clockwise)
+            newRow = 10 - col;
+            newCol = row;
+            // Adjust for corners
+            if (row == -1) newCol = -1;
+            if (row == 11) newCol = 11;
+            if (col == -1) newRow = 11;
+            if (col == 11) newRow = -1;
+            break;
+        default:
+            return;
+    }
+    row = newRow;
+    col = newCol;
+}
+
+uint8_t LEDMappingManager::transformLedIndex(uint8_t originalIndex) const {
+    if (rotationDegrees == 0) {
+        return originalIndex;  // No transformation needed
+    }
+
+    int8_t row, col;
+    indexToCoords(originalIndex, row, col);
+    rotateCoords(row, col);
+    return coordsToIndex(row, col);
 }

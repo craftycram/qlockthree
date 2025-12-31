@@ -48,13 +48,27 @@ public:
     String getMappingInfoJSON() const;
     String getAvailableMappingsJSON() const;
     
-    // Status LED and startup sequence configuration
+    // Status LED and startup sequence configuration (rotation is applied automatically)
     uint8_t getWiFiStatusLED() const;
     uint8_t getSystemStatusLED() const;
     const uint8_t* getStartupSequence() const;
     uint16_t getStartupSequenceLength() const;
+    uint8_t getTransformedStartupLED(uint16_t sequenceIndex) const;
+
+    // Rotation settings
+    uint16_t getRotationDegrees() const;
+    void setRotationDegrees(uint16_t degrees);
+    void saveRotation();
 
 private:
+    // Rotation
+    uint16_t rotationDegrees;  // 0, 90, 180, or 270
+
+    // Coordinate transformation for rotation
+    void indexToCoords(uint8_t ledIndex, int8_t& row, int8_t& col) const;
+    uint8_t coordsToIndex(int8_t row, int8_t col) const;
+    void rotateCoords(int8_t& row, int8_t& col) const;
+    uint8_t transformLedIndex(uint8_t originalIndex) const;
     Preferences preferences;
     MappingType currentMappingType;
     
