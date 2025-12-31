@@ -166,7 +166,7 @@ inline int8_t getMinuteWordIndex(uint8_t minute) {
     if (minute >= 20 && minute < 25) return 3;     // ZWANZIG nach
     if (minute >= 25 && minute < 40) return 5;     // HALB (with prefix for 25-29, 35-39)
     if (minute >= 40 && minute < 45) return 3;     // ZWANZIG vor
-    if (minute >= 45 && minute < 50) return 4;     // DREIVIERTEL
+    if (minute >= 45 && minute < 50) return 2;     // VIERTEL vor
     if (minute >= 50 && minute < 55) return 1;     // ZEHN vor
     if (minute >= 55) return 0;                    // FÜNF vor
     return -1; // Exact hour, no minute word
@@ -187,7 +187,7 @@ inline int8_t getConnectorWordIndex(uint8_t minute) {
     if (minute >= 30 && minute < 35) return -1;    // No connector for "halb"
     if (minute >= 35 && minute < 40) return 1;     // NACH (for "fünf nach halb")
     if (minute >= 40 && minute < 45) return 0;     // VOR (for "zwanzig vor")
-    if (minute >= 45 && minute < 50) return -1;    // No connector for "dreiviertel"
+    if (minute >= 45 && minute < 50) return 0;    // No connector for "dreiviertel"
     if (minute >= 50) return 0;                    // VOR (before/to)
     return -1; // No connector needed
 }
