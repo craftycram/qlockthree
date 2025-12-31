@@ -70,6 +70,7 @@ private:
     bool (*shouldShowBaseWords)();
     uint8_t (*getHourWordIndex)(uint8_t hour, uint8_t minute);
     int8_t (*getMinuteWordIndex)(uint8_t minute);
+    int8_t (*getMinutePrefixWordIndex)(uint8_t minute);
     int8_t (*getConnectorWordIndex)(uint8_t minute);
     uint8_t (*getMinuteDots)(uint8_t minute);
     bool (*isHalfPast)(uint8_t minute);

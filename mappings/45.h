@@ -129,8 +129,28 @@ static const WordMapping SPECIAL_WORDS[] = {
 };
 
 // Time calculation functions - inline implementations for header-only mapping
-inline bool shouldShowBaseWords() { 
-    return true; 
+//
+// German Time Display Logic:
+// +---------+---------------------------+----------------------------------+
+// | Minutes | Display                   | Components                       |
+// +---------+---------------------------+----------------------------------+
+// | 00-04   | ES IST X UHR              | hour + UHR                       |
+// | 05-09   | ES IST FÜNF NACH X        | FÜNF + NACH + hour               |
+// | 10-14   | ES IST ZEHN NACH X        | ZEHN + NACH + hour               |
+// | 15-19   | ES IST VIERTEL NACH X     | VIERTEL + NACH + hour            |
+// | 20-24   | ES IST ZWANZIG NACH X     | ZWANZIG + NACH + hour            |
+// | 25-29   | ES IST FÜNF VOR HALB X+1  | prefix FÜNF + VOR + HALB + hour  |
+// | 30-34   | ES IST HALB X+1           | HALB + hour                      |
+// | 35-39   | ES IST FÜNF NACH HALB X+1 | prefix FÜNF + NACH + HALB + hour |
+// | 40-44   | ES IST ZWANZIG VOR X+1    | ZWANZIG + VOR + hour             |
+// | 45-49   | ES IST DREIVIERTEL X+1    | DREIVIERTEL + hour               |
+// | 50-54   | ES IST ZEHN VOR X+1       | ZEHN + VOR + hour                |
+// | 55-59   | ES IST FÜNF VOR X+1       | FÜNF + VOR + hour                |
+// +---------+---------------------------+----------------------------------+
+// Note: For minutes >= 25, hour is incremented (X+1 = next hour)
+
+inline bool shouldShowBaseWords() {
+    return true;
 }
 
 inline uint8_t getHourWordIndex(uint8_t hour, uint8_t minute) {
@@ -140,12 +160,11 @@ inline uint8_t getHourWordIndex(uint8_t hour, uint8_t minute) {
 }
 
 inline int8_t getMinuteWordIndex(uint8_t minute) {
-    if (minute >= 5 && minute < 10) return 0;      // FÜNF
-    if (minute >= 10 && minute < 15) return 1;     // ZEHN
-    if (minute >= 15 && minute < 20) return 2;     // VIERTEL
-    if (minute >= 20 && minute < 25) return 3;     // ZWANZIG
-    if (minute >= 25 && minute < 35) return 5;     // HALB
-    if (minute >= 35 && minute < 40) return 5;     // HALB (for "5 nach halb")
+    if (minute >= 5 && minute < 10) return 0;      // FÜNF nach
+    if (minute >= 10 && minute < 15) return 1;     // ZEHN nach
+    if (minute >= 15 && minute < 20) return 2;     // VIERTEL nach
+    if (minute >= 20 && minute < 25) return 3;     // ZWANZIG nach
+    if (minute >= 25 && minute < 40) return 5;     // HALB (with prefix for 25-29, 35-39)
     if (minute >= 40 && minute < 45) return 3;     // ZWANZIG vor
     if (minute >= 45 && minute < 50) return 4;     // DREIVIERTEL
     if (minute >= 50 && minute < 55) return 1;     // ZEHN vor
@@ -153,11 +172,21 @@ inline int8_t getMinuteWordIndex(uint8_t minute) {
     return -1; // Exact hour, no minute word
 }
 
+// Returns prefix minute word index for "X VOR/NACH HALB" cases
+// Returns the minute word to show before HALB
+inline int8_t getMinutePrefixWordIndex(uint8_t minute) {
+    if (minute >= 25 && minute < 30) return 0;     // FÜNF vor halb
+    if (minute >= 35 && minute < 40) return 0;     // FÜNF nach halb
+    return -1; // No prefix needed
+}
+
 inline int8_t getConnectorWordIndex(uint8_t minute) {
-    if (minute == 0) return 2;                     // UHR (o'clock)
+    if (minute < 5) return 2;                      // UHR (o'clock)
     if (minute >= 5 && minute < 25) return 1;      // NACH (after/past)
-    if (minute >= 25 && minute < 35) return -1;    // No connector for "halb"
-    if (minute >= 35 && minute < 45) return 1;     // NACH (for "X nach halb")
+    if (minute >= 25 && minute < 30) return 0;     // VOR (for "fünf vor halb")
+    if (minute >= 30 && minute < 35) return -1;    // No connector for "halb"
+    if (minute >= 35 && minute < 40) return 1;     // NACH (for "fünf nach halb")
+    if (minute >= 40 && minute < 45) return 0;     // VOR (for "zwanzig vor")
     if (minute >= 45 && minute < 50) return -1;    // No connector for "dreiviertel"
     if (minute >= 50) return 0;                    // VOR (before/to)
     return -1; // No connector needed

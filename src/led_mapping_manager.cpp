@@ -13,7 +13,7 @@
     setMappingFunctions(shouldShowBaseWords, getHourWordIndex, getMinuteWordIndex, \
                        getConnectorWordIndex, getMinuteDots, isHalfPast)
 
-LEDMappingManager::LEDMappingManager() : 
+LEDMappingManager::LEDMappingManager() :
     currentMappingType(MappingType::MAPPING_45_GERMAN),
     currentMappingName(nullptr),
     currentMappingId(nullptr),
@@ -22,6 +22,7 @@ LEDMappingManager::LEDMappingManager() :
     shouldShowBaseWords(nullptr),
     getHourWordIndex(nullptr),
     getMinuteWordIndex(nullptr),
+    getMinutePrefixWordIndex(nullptr),
     getConnectorWordIndex(nullptr),
     getMinuteDots(nullptr),
     isHalfPast(nullptr),
@@ -69,6 +70,7 @@ void LEDMappingManager::loadMapping(MappingType type) {
             shouldShowBaseWords = Mapping45::shouldShowBaseWords;
             getHourWordIndex = Mapping45::getHourWordIndex;
             getMinuteWordIndex = Mapping45::getMinuteWordIndex;
+            getMinutePrefixWordIndex = Mapping45::getMinutePrefixWordIndex;
             getConnectorWordIndex = Mapping45::getConnectorWordIndex;
             getMinuteDots = Mapping45::getMinuteDots;
             isHalfPast = Mapping45::isHalfPast;
@@ -168,11 +170,21 @@ void LEDMappingManager::calculateTimeDisplay(uint8_t hour, uint8_t minute, bool*
         illuminateWord(ledStates, hourWords[hourIndex]);
     }
     
+    // Show minute prefix word (for "FÜNF VOR HALB" / "FÜNF NACH HALB" cases)
+    if (getMinutePrefixWordIndex) {
+        int8_t prefixIndex = getMinutePrefixWordIndex(minute);
+        if (prefixIndex >= 0 && prefixIndex < minuteWordsCount) {
+            Serial.printf("MAPPING DEBUG: Minute prefix word: '%s' at LED %d, length %d\n",
+                         minuteWords[prefixIndex].word, minuteWords[prefixIndex].start_led, minuteWords[prefixIndex].length);
+            illuminateWord(ledStates, minuteWords[prefixIndex]);
+        }
+    }
+
     // Show minute word
     int8_t minuteIndex = getMinuteWordIndex(minute);
     Serial.printf("MAPPING DEBUG: Minute index calculated as %d (max: %d)\n", minuteIndex, minuteWordsCount);
     if (minuteIndex >= 0 && minuteIndex < minuteWordsCount) {
-        Serial.printf("MAPPING DEBUG: Minute word: '%s' at LED %d, length %d\n", 
+        Serial.printf("MAPPING DEBUG: Minute word: '%s' at LED %d, length %d\n",
                      minuteWords[minuteIndex].word, minuteWords[minuteIndex].start_led, minuteWords[minuteIndex].length);
         illuminateWord(ledStates, minuteWords[minuteIndex]);
     }
