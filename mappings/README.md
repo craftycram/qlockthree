@@ -2,6 +2,16 @@
 
 This directory contains **header-only** LED mapping files for different qlockthree layouts.
 
+## 📁 File Structure
+
+```
+mappings/
+├── mapping_base.h    <- Shared struct (include this in your mapping)
+├── 45.h              <- 45cm German layout
+├── 45bw.h            <- 45cm Swabian (BW) layout
+└── README.md         <- This file
+```
+
 ## 📝 Adding a New Mapping
 
 To add a new mapping, you only need to create **ONE** header file (`.h`) in this folder. No `.cpp` files needed!
@@ -11,7 +21,7 @@ To add a new mapping, you only need to create **ONE** header file (`.h`) in this
 1. **Copy the template**: Start by copying `45.h` as a template
 2. **Rename**: Name it descriptively (e.g., `110.h`, `custom-layout.h`)
 3. **Customize**: Update the mapping data
-4. **Done!** The system will automatically discover it
+4. **Register**: Add the mapping to `led_mapping_manager.cpp` (see below)
 
 ### Example: Creating a 110-LED Mapping
 
@@ -27,13 +37,19 @@ cp mappings/45.h mappings/110.h
 
 Each mapping header must contain:
 
+### 0. **Include Base** (Required)
+```cpp
+#include "mapping_base.h"
+```
+
 ### 1. **Metadata** (Required)
 ```cpp
-#define MAPPING_NAME "Your Layout Name"
-#define MAPPING_ID "unique-id"
-#define MAPPING_LANGUAGE "DE"  // or "EN", "FR", etc.
-#define MAPPING_TOTAL_LEDS 125
-#define MAPPING_DESCRIPTION "Detailed description"
+// Use constexpr to avoid macro conflicts between mappings
+static constexpr const char* MAPPING_NAME = "Your Layout Name";
+static constexpr const char* MAPPING_ID = "unique-id";
+static constexpr const char* MAPPING_LANGUAGE = "DE";  // or "EN", "FR", etc.
+static constexpr uint16_t MAPPING_TOTAL_LEDS = 125;
+static constexpr const char* MAPPING_DESCRIPTION = "Detailed description";
 ```
 
 ### 2. **Word Mappings** (Required)
@@ -93,8 +109,8 @@ inline uint8_t getMinuteDots(uint8_t minute) {
 
 ### 4. **Status LEDs** (Required)
 ```cpp
-#define STATUS_LED_WIFI 11     // WiFi status indicator
-#define STATUS_LED_SYSTEM 10   // System status indicator
+static constexpr uint8_t STATUS_LED_WIFI = 11;     // WiFi status indicator
+static constexpr uint8_t STATUS_LED_SYSTEM = 10;   // System status indicator
 ```
 
 ### 5. **Startup Sequence** (Required)
@@ -104,7 +120,7 @@ static const uint8_t STARTUP_SEQUENCE[] = {
     112, 113, 114, 115, // ... all LEDs in desired order
 };
 
-#define STARTUP_SEQUENCE_LENGTH (sizeof(STARTUP_SEQUENCE) / sizeof(STARTUP_SEQUENCE[0]))
+static constexpr uint16_t STARTUP_SEQUENCE_LENGTH = sizeof(STARTUP_SEQUENCE) / sizeof(STARTUP_SEQUENCE[0]);
 ```
 
 ### 6. **Optional Features**
@@ -178,9 +194,14 @@ pio run
 
 ## 📦 Example Mappings
 
-### 45cm Layout (`45.h`)
+### 45cm German Layout (`45.h`)
 - **LEDs**: 125 total (11×11 grid + 4 corner dots)
-- **Language**: German
+- **Language**: German (Standard)
+- **Features**: Weekday display, minute dots, special words
+
+### 45cm Swabian Layout (`45bw.h`)
+- **LEDs**: 125 total (11×11 grid + 4 corner dots)
+- **Language**: German (Swabian/Baden-Württemberg dialect)
 - **Features**: Weekday display, minute dots, special words
 
 ### Adding Your Own
@@ -188,6 +209,7 @@ pio run
 Want to create a mapping for:
 - Different language (English, French, etc.)?
 - Different grid size (10×10, 11×11, etc.)?
+- Regional dialect?
 - Custom word layout?
 
 Just copy `45.h` as a template and customize!
@@ -200,15 +222,56 @@ Just copy `45.h` as a template and customize!
 4. **Test incrementally**: Test each word mapping individually
 5. **Verify status LEDs**: Ensure they're accessible and visible
 
-## 🚀 Automatic Integration
+## 🚀 Registering Your Mapping
 
-Once your mapping header is complete:
+Once your mapping header is complete, you need to register it in the system:
 
-1. The LED Mapping Manager will **automatically discover** it
-2. Available in the **web interface** mapping selection
-3. No code changes needed in other files
-4. LED count updates automatically
-5. Startup sequence adapts to your layout
+### 1. Add to `led_mapping_manager.h`
+```cpp
+enum class MappingType {
+    MAPPING_45_GERMAN,
+    MAPPING_45BW_GERMAN,
+    MAPPING_YOUR_NEW,      // Add your mapping here
+    MAPPING_110_GERMAN,
+    MAPPING_CUSTOM,
+    MAPPING_COUNT
+};
+```
+
+### 2. Add to `led_mapping_manager.cpp`
+```cpp
+// Include your header
+#include "../mappings/your_new.h"
+
+// Add case in loadMapping()
+case MappingType::MAPPING_YOUR_NEW: {
+    using namespace MappingYourNew;
+    setMappingData(MAPPING_NAME, MAPPING_ID, MAPPING_DESCRIPTION, MAPPING_TOTAL_LEDS);
+    setMappingArrays(...);
+    // Set function pointers...
+} break;
+
+// Add to setCustomMapping()
+} else if (String(mappingId) == "your_id") {
+    loadMapping(MappingType::MAPPING_YOUR_NEW);
+
+// Add to getAvailableMappingsJSON()
+json += ",{\"name\":\"Your Name\",\"id\":\"your_id\",\"type\":X,\"led_count\":125,\"status\":\"active\"}";
+
+// Add cases to getWiFiStatusLED(), getSystemStatusLED(), getStartupSequence(), getStartupSequenceLength()
+// Add case to calculateTimeDisplayWithWeekday() if you have weekdays
+```
+
+### 3. Add to `web_server_manager.cpp`
+```cpp
+// Add option in handleLEDMapping() dropdown
+html += "<option value='X'>Your Mapping Name</option>";
+
+// Add case in handleSetLEDMapping()
+case X:
+    ledController->setMapping(MappingType::MAPPING_YOUR_NEW);
+    break;
+```
 
 ## 📚 Reference
 

@@ -818,8 +818,9 @@ void WebServerManager::handleLEDMapping() {
         html += "<h3>Select LED Mapping</h3>";
         html += "<label for='mapping-select'>Available Mappings:</label>";
         html += "<select id='mapping-select'>";
-        html += "<option value='0'" + String(mappingManager->getCurrentMappingType() == MappingType::MAPPING_45_GERMAN ? " selected" : "") + ">45-LED German Layout</option>";
-        html += "<option value='1'" + String(mappingManager->getCurrentMappingType() == MappingType::MAPPING_110_GERMAN ? " selected" : "") + ">110-LED German Layout</option>";
+        html += "<option value='0'" + String(mappingManager->getCurrentMappingType() == MappingType::MAPPING_45_GERMAN ? " selected" : "") + ">45cm German</option>";
+        html += "<option value='1'" + String(mappingManager->getCurrentMappingType() == MappingType::MAPPING_45BW_GERMAN ? " selected" : "") + ">45cm Swabian (BW)</option>";
+        html += "<option value='2'" + String(mappingManager->getCurrentMappingType() == MappingType::MAPPING_110_GERMAN ? " selected" : "") + ">110-LED German Layout</option>";
         html += "</select>";
         html += "<button onclick='setMapping()' class='button mapping-btn'>Apply Mapping</button>";
         html += "</div>";
@@ -857,9 +858,13 @@ void WebServerManager::handleSetLEDMapping() {
         switch (mappingType) {
             case 0:
                 ledController->setMapping(MappingType::MAPPING_45_GERMAN);
-                server.send(200, "text/plain", "Mapping changed to 45-LED German Layout");
+                server.send(200, "text/plain", "Mapping changed to 45cm German");
                 break;
             case 1:
+                ledController->setMapping(MappingType::MAPPING_45BW_GERMAN);
+                server.send(200, "text/plain", "Mapping changed to 45cm Swabian (BW)");
+                break;
+            case 2:
                 ledController->setMapping(MappingType::MAPPING_110_GERMAN);
                 server.send(200, "text/plain", "Mapping changed to 110-LED German Layout");
                 break;

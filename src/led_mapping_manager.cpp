@@ -1,5 +1,6 @@
 #include "led_mapping_manager.h"
 #include "../mappings/45.h"
+#include "../mappings/45bw.h"
 
 // Helper macro to reduce boilerplate when loading mappings
 // Use within a scope where the mapping namespace is imported
@@ -80,7 +81,31 @@ void LEDMappingManager::loadMapping(MappingType type) {
             Serial.printf("  getHourWordIndex: %p\n", getHourWordIndex);
             Serial.printf("  getMinuteWordIndex: %p\n", getMinuteWordIndex);
         } break;
-        
+
+        case MappingType::MAPPING_45BW_GERMAN: {
+            Serial.println("MAPPING DEBUG: Loading 45cm Swabian (BW) German mapping...");
+            using namespace Mapping45BW;
+
+            // Set mapping metadata
+            setMappingData(MAPPING_NAME, MAPPING_ID, MAPPING_DESCRIPTION, MAPPING_TOTAL_LEDS);
+
+            // Set mapping arrays
+            setMappingArrays(BASE_WORDS, sizeof(BASE_WORDS)/sizeof(BASE_WORDS[0]),
+                            HOUR_WORDS, sizeof(HOUR_WORDS)/sizeof(HOUR_WORDS[0]),
+                            MINUTE_WORDS, sizeof(MINUTE_WORDS)/sizeof(MINUTE_WORDS[0]),
+                            CONNECTOR_WORDS, sizeof(CONNECTOR_WORDS)/sizeof(CONNECTOR_WORDS[0]),
+                            MINUTE_DOTS, sizeof(MINUTE_DOTS)/sizeof(MINUTE_DOTS[0]));
+
+            // Set function pointers
+            shouldShowBaseWords = Mapping45BW::shouldShowBaseWords;
+            getHourWordIndex = Mapping45BW::getHourWordIndex;
+            getMinuteWordIndex = Mapping45BW::getMinuteWordIndex;
+            getMinutePrefixWordIndex = Mapping45BW::getMinutePrefixWordIndex;
+            getConnectorWordIndex = Mapping45BW::getConnectorWordIndex;
+            getMinuteDots = Mapping45BW::getMinuteDots;
+            isHalfPast = Mapping45BW::isHalfPast;
+        } break;
+
         case MappingType::MAPPING_110_GERMAN: {
             // TODO: Create mappings/110.h, add #include, then uncomment:
             // using namespace Mapping110;
@@ -121,6 +146,8 @@ void LEDMappingManager::setCustomMapping(const char* mappingId) {
     // Map string ID to MappingType enum
     if (String(mappingId) == "45") {
         loadMapping(MappingType::MAPPING_45_GERMAN);
+    } else if (String(mappingId) == "45bw") {
+        loadMapping(MappingType::MAPPING_45BW_GERMAN);
     } else if (String(mappingId) == "110") {
         loadMapping(MappingType::MAPPING_110_GERMAN);
     } else {
@@ -215,8 +242,17 @@ void LEDMappingManager::calculateTimeDisplayWithWeekday(uint8_t hour, uint8_t mi
         case MappingType::MAPPING_45_GERMAN: {
             if (Mapping45::shouldShowWeekday()) {
                 uint8_t weekdayIndex = Mapping45::getWeekdayIndex(weekday);
-                if (weekdayIndex < 7) { // 7 weekdays (M D M D F S S)
+                if (weekdayIndex < 7) {
                     illuminateWord(ledStates, Mapping45::WEEKDAY_WORDS[weekdayIndex]);
+                }
+            }
+        } break;
+
+        case MappingType::MAPPING_45BW_GERMAN: {
+            if (Mapping45BW::shouldShowWeekday()) {
+                uint8_t weekdayIndex = Mapping45BW::getWeekdayIndex(weekday);
+                if (weekdayIndex < 7) {
+                    illuminateWord(ledStates, Mapping45BW::WEEKDAY_WORDS[weekdayIndex]);
                 }
             }
         } break;
@@ -326,59 +362,64 @@ String LEDMappingManager::getMappingInfoJSON() const {
 
 String LEDMappingManager::getAvailableMappingsJSON() const {
     String json = "[";
-    json += "{\"name\":\"45cm German qlockthree\",\"id\":\"45\",\"type\":0,\"led_count\":125,\"status\":\"active\"}";
+    json += "{\"name\":\"45cm German\",\"id\":\"45\",\"type\":0,\"led_count\":125,\"status\":\"active\"}";
+    json += ",{\"name\":\"45cm Swabian (BW)\",\"id\":\"45bw\",\"type\":1,\"led_count\":125,\"status\":\"active\"}";
     // Uncomment when 110-LED mapping is implemented:
-    // json += ",{\"name\":\"110-LED German\",\"id\":\"110\",\"type\":1,\"led_count\":110,\"status\":\"coming_soon\"}";
+    // json += ",{\"name\":\"110-LED German\",\"id\":\"110\",\"type\":2,\"led_count\":110,\"status\":\"coming_soon\"}";
     json += "]";
     return json;
 }
 
 // Status LED and startup sequence configuration
 uint8_t LEDMappingManager::getWiFiStatusLED() const {
-    // Return mapping-specific WiFi status LED index
     switch (currentMappingType) {
         case MappingType::MAPPING_45_GERMAN:
             return Mapping45::STATUS_LED_WIFI;
+        case MappingType::MAPPING_45BW_GERMAN:
+            return Mapping45BW::STATUS_LED_WIFI;
         case MappingType::MAPPING_110_GERMAN:
-            return 11; // Default for 110-LED mapping
+            return 11;
         default:
-            return 11; // Default fallback
+            return 11;
     }
 }
 
 uint8_t LEDMappingManager::getSystemStatusLED() const {
-    // Return mapping-specific system status LED index
     switch (currentMappingType) {
         case MappingType::MAPPING_45_GERMAN:
             return Mapping45::STATUS_LED_SYSTEM;
+        case MappingType::MAPPING_45BW_GERMAN:
+            return Mapping45BW::STATUS_LED_SYSTEM;
         case MappingType::MAPPING_110_GERMAN:
-            return 10; // Default for 110-LED mapping
+            return 10;
         default:
-            return 10; // Default fallback
+            return 10;
     }
 }
 
 const uint8_t* LEDMappingManager::getStartupSequence() const {
-    // Return mapping-specific startup sequence
     switch (currentMappingType) {
         case MappingType::MAPPING_45_GERMAN:
             return Mapping45::STARTUP_SEQUENCE;
+        case MappingType::MAPPING_45BW_GERMAN:
+            return Mapping45BW::STARTUP_SEQUENCE;
         case MappingType::MAPPING_110_GERMAN:
-            return Mapping45::STARTUP_SEQUENCE; // Use 45cm for now
+            return Mapping45::STARTUP_SEQUENCE;
         default:
-            return Mapping45::STARTUP_SEQUENCE; // Default fallback
+            return Mapping45::STARTUP_SEQUENCE;
     }
 }
 
 uint16_t LEDMappingManager::getStartupSequenceLength() const {
-    // Return mapping-specific startup sequence length
     switch (currentMappingType) {
         case MappingType::MAPPING_45_GERMAN:
             return Mapping45::STARTUP_SEQUENCE_LENGTH;
+        case MappingType::MAPPING_45BW_GERMAN:
+            return Mapping45BW::STARTUP_SEQUENCE_LENGTH;
         case MappingType::MAPPING_110_GERMAN:
-            return Mapping45::STARTUP_SEQUENCE_LENGTH; // Use 45cm for now
+            return Mapping45::STARTUP_SEQUENCE_LENGTH;
         default:
-            return Mapping45::STARTUP_SEQUENCE_LENGTH; // Default fallback
+            return Mapping45::STARTUP_SEQUENCE_LENGTH;
     }
 }
 
