@@ -98,8 +98,8 @@ static const WordMapping WEEKDAY_WORDS[] = {
 
 // Special words (for birthday/special occasions - not used in normal time display)
 static const WordMapping SPECIAL_WORDS[] = {
-    {"HAPPY", 86, 82, false},     // Row 3: HAPPY (37-41) - part of NACHAPPYVOR
-    {"BIRTHDAY", 71, 78, false},  // Row 4: BIRTHDAY (48-55)
+    {"HAPPY", 82, 5, false},
+    {"BIRTHDAY", 71, 8, false},
 };
 
 // Time calculation functions - inline implementations for header-only mapping
