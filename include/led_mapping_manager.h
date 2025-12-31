@@ -25,6 +25,7 @@ public:
     // Time display logic
     void calculateTimeDisplay(uint8_t hour, uint8_t minute, bool* ledStates);
     void calculateTimeDisplayWithWeekday(uint8_t hour, uint8_t minute, uint8_t weekday, bool* ledStates);
+    void calculateBirthdayDisplay(bool* ledStates);
     void clearAllLEDs(bool* ledStates);
     
     // Mapping information

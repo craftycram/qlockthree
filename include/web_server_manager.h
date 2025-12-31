@@ -9,6 +9,7 @@ class WiFiManagerHelper;
 class AutoUpdater;
 class LEDController;
 class TimeManager;
+class BirthdayManager;
 
 class WebServerManager {
 public:
@@ -16,6 +17,7 @@ public:
     void begin(WiFiManagerHelper* wifiHelper, AutoUpdater* updater, LEDController* ledController = nullptr, TimeManager* timeManager = nullptr,
                bool* debugModeEnabled = nullptr, int* debugHour = nullptr, int* debugMinute = nullptr);
     void handleClient();
+    void setBirthdayManager(BirthdayManager* manager) { birthdayManager = manager; }
 
 private:
     WebServer server;
@@ -23,6 +25,7 @@ private:
     AutoUpdater* autoUpdater;
     LEDController* ledController;
     TimeManager* timeManager;
+    BirthdayManager* birthdayManager;
 
     // Debug mode state pointers
     bool* debugModeEnabled;
@@ -61,6 +64,13 @@ private:
     void handleDevToggle();
     void handleReboot();
     void handleFactoryReset();
+
+    // Birthday handlers
+    void handleBirthdayPage();
+    void handleBirthdayList();
+    void handleBirthdayAdd();
+    void handleBirthdayRemove();
+    void handleBirthdayMode();
 
     // HTML/JSON generators
     String getStatusHTML();

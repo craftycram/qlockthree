@@ -7,6 +7,7 @@
 #include "web_server_manager.h"
 #include "led_controller.h"
 #include "time_manager.h"
+#include "birthday_manager.h"
 
 // Create module instances
 WiFiManagerHelper wifiManager;
@@ -15,6 +16,7 @@ AutoUpdater autoUpdater;
 WebServerManager webServer(WEB_SERVER_PORT);
 LEDController ledController;
 TimeManager timeManager;
+BirthdayManager birthdayManager;
 
 // Debug mode state (resets on reboot)
 bool debugModeEnabled = false;
@@ -98,9 +100,14 @@ void setup() {
         // Initialize Auto Updater with LED controller for feedback
         autoUpdater.begin("craftycram/qlockthree", CURRENT_VERSION, UPDATE_CHECK_INTERVAL, &ledController);
         
+        // Initialize Birthday Manager
+        birthdayManager.begin();
+        ledController.setBirthdayManager(&birthdayManager);
+
         // Initialize Web Server with TimeManager and debug state
         webServer.begin(&wifiManager, &autoUpdater, &ledController, &timeManager,
                         &debugModeEnabled, &debugHour, &debugMinute);
+        webServer.setBirthdayManager(&birthdayManager);
         
         // Initial update check (show update mode during check)
         if (autoUpdater.isUpdateAvailable()) {
@@ -326,23 +333,56 @@ void loop() {
         // Get accurate time from TimeManager (only if valid) or use debug time
         if (timeManager.isTimeSynced() && hasValidTime) {
             int hours, minutes, weekday;
+            uint8_t month, day;
 
             if (debugModeEnabled) {
                 // Use debug time override
                 hours = debugHour;
                 minutes = debugMinute;
                 weekday = 0;  // Fixed weekday in debug mode
+                month = 1;    // Fixed month in debug mode
+                day = 1;      // Fixed day in debug mode
             } else {
                 // Use real time
                 struct tm currentTime = timeManager.getCurrentTime();
                 hours = currentTime.tm_hour;
                 minutes = currentTime.tm_min;
                 weekday = currentTime.tm_wday;  // 0=Sunday, 1=Monday, ..., 6=Saturday
+                month = currentTime.tm_mon + 1;  // tm_mon is 0-11, we need 1-12
+                day = currentTime.tm_mday;
             }
 
-            // Show time on qlockthree LEDs WITH weekday
+            // Show time on qlockthree LEDs WITH weekday (and birthday if applicable)
             if (ledController.getCurrentPattern() == LEDPattern::CLOCK_DISPLAY) {
-                ledController.showTime(hours, minutes, weekday);
+                bool isBirthday = birthdayManager.isBirthday(month, day);
+
+                if (isBirthday) {
+                    BirthdayManager::DisplayMode mode = birthdayManager.getDisplayMode();
+
+                    switch (mode) {
+                        case BirthdayManager::DisplayMode::REPLACE:
+                            // Show only HAPPY BIRTHDAY instead of time
+                            ledController.showBirthdayOnly();
+                            break;
+
+                        case BirthdayManager::DisplayMode::ALTERNATE:
+                            // Alternate between time and birthday every 3 seconds
+                            if (ledController.shouldShowBirthdayInAlternateMode()) {
+                                ledController.showBirthdayOnly();
+                            } else {
+                                ledController.showTime(hours, minutes, weekday);
+                            }
+                            break;
+
+                        case BirthdayManager::DisplayMode::OVERLAY:
+                            // Show both time and HAPPY BIRTHDAY
+                            ledController.showBirthdayOverlay(hours, minutes, weekday);
+                            break;
+                    }
+                } else {
+                    // No birthday today - show normal time
+                    ledController.showTime(hours, minutes, weekday);
+                }
             }
         }
         

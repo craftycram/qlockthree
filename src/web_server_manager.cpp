@@ -3,11 +3,12 @@
 #include "auto_updater.h"
 #include "led_controller.h"
 #include "time_manager.h"
+#include "birthday_manager.h"
 #include "config.h"
 #include <WiFi.h>
 
 WebServerManager::WebServerManager(int port) : server(port), wifiManagerHelper(nullptr), autoUpdater(nullptr), ledController(nullptr), timeManager(nullptr),
-    debugModeEnabled(nullptr), debugHour(nullptr), debugMinute(nullptr) {
+    birthdayManager(nullptr), debugModeEnabled(nullptr), debugHour(nullptr), debugMinute(nullptr) {
 }
 
 void WebServerManager::begin(WiFiManagerHelper* wifiHelper, AutoUpdater* updater, LEDController* ledCtrl, TimeManager* timeMgr,
@@ -139,6 +140,13 @@ void WebServerManager::setupRoutes() {
     server.on("/dev/toggle", HTTP_POST, [this]() { handleDevToggle(); });
     server.on("/dev/reboot", HTTP_POST, [this]() { handleReboot(); });
     server.on("/dev/factory-reset", HTTP_POST, [this]() { handleFactoryReset(); });
+
+    // Birthday endpoints
+    server.on("/birthdays", [this]() { handleBirthdayPage(); });
+    server.on("/birthdays/list", [this]() { handleBirthdayList(); });
+    server.on("/birthdays/add", HTTP_POST, [this]() { handleBirthdayAdd(); });
+    server.on("/birthdays/remove", HTTP_POST, [this]() { handleBirthdayRemove(); });
+    server.on("/birthdays/mode", HTTP_POST, [this]() { handleBirthdayMode(); });
 }
 
 void WebServerManager::handleRoot() {
@@ -1151,4 +1159,200 @@ String WebServerManager::getDevPageHTML() {
 
     html += "</body></html>";
     return html;
+}
+
+// Birthday handlers
+void WebServerManager::handleBirthdayPage() {
+    String html = "<!DOCTYPE html><html><head>";
+    html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+    html += "<title>Birthday Settings</title>";
+    html += "<style>";
+    html += "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; ";
+    html += "background: #f0f0f0; margin: 0; padding: 20px; }";
+    html += ".container { max-width: 500px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }";
+    html += "h1 { color: #333; font-size: 1.5em; text-align: center; }";
+    html += ".group { background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0; }";
+    html += "h3 { margin-top: 0; color: #555; }";
+    html += ".radio-group { margin: 10px 0; }";
+    html += ".radio-group label { display: block; padding: 8px; margin: 5px 0; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; }";
+    html += ".radio-group label:hover { background: #f0f0f0; }";
+    html += ".radio-group input[type='radio'] { margin-right: 10px; }";
+    html += ".birthday-list { list-style: none; padding: 0; margin: 10px 0; }";
+    html += ".birthday-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #fff; border: 1px solid #ddd; border-radius: 4px; margin: 5px 0; }";
+    html += ".delete-btn { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }";
+    html += ".delete-btn:hover { background: #c82333; }";
+    html += ".add-form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }";
+    html += "select, .button { padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 1em; }";
+    html += ".button { background: #28a745; color: white; border: none; cursor: pointer; }";
+    html += ".button:hover { background: #218838; }";
+    html += ".button.primary { background: #007bff; }";
+    html += ".button.primary:hover { background: #0056b3; }";
+    html += ".button.back { background: #6c757d; }";
+    html += ".buttons { text-align: center; margin-top: 20px; }";
+    html += ".empty-msg { color: #888; font-style: italic; text-align: center; padding: 20px; }";
+    html += "</style></head><body>";
+    html += "<div class='container'>";
+    html += "<h1>Birthday Settings</h1>";
+
+    // Display mode selection
+    html += "<div class='group'>";
+    html += "<h3>Display Mode</h3>";
+    html += "<div class='radio-group' id='modeGroup'>";
+
+    int currentMode = birthdayManager ? birthdayManager->getDisplayMode() : 2;
+    html += "<label><input type='radio' name='mode' value='0'" + String(currentMode == 0 ? " checked" : "") + "> Replace - Show only HAPPY BIRTHDAY</label>";
+    html += "<label><input type='radio' name='mode' value='1'" + String(currentMode == 1 ? " checked" : "") + "> Alternate - Switch between time and HAPPY BIRTHDAY</label>";
+    html += "<label><input type='radio' name='mode' value='2'" + String(currentMode == 2 ? " checked" : "") + "> Overlay - Show HAPPY BIRTHDAY with time</label>";
+    html += "</div>";
+    html += "<button class='button primary' onclick='saveMode()'>Save Mode</button>";
+    html += "</div>";
+
+    // Birthday list
+    html += "<div class='group'>";
+    html += "<h3>Birthday Dates</h3>";
+    html += "<ul class='birthday-list' id='birthdayList'>";
+    html += "<li class='empty-msg'>Loading...</li>";
+    html += "</ul>";
+    html += "</div>";
+
+    // Add birthday form
+    html += "<div class='group'>";
+    html += "<h3>Add Birthday</h3>";
+    html += "<div class='add-form'>";
+    html += "<select id='month'>";
+    const char* months[] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
+    for (int i = 0; i < 12; i++) {
+        html += "<option value='" + String(i + 1) + "'>" + months[i] + "</option>";
+    }
+    html += "</select>";
+    html += "<select id='day'>";
+    for (int i = 1; i <= 31; i++) {
+        html += "<option value='" + String(i) + "'>" + String(i) + "</option>";
+    }
+    html += "</select>";
+    html += "<button class='button' onclick='addBirthday()'>Add</button>";
+    html += "</div>";
+    html += "</div>";
+
+    html += "<div class='buttons'>";
+    html += "<a href='/' class='button back'>Back to Home</a>";
+    html += "</div>";
+
+    html += "</div>";
+
+    // JavaScript
+    html += "<script>";
+    html += "const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];";
+    html += "function loadBirthdays() {";
+    html += "  fetch('/birthdays/list').then(r=>r.json()).then(data => {";
+    html += "    const list = document.getElementById('birthdayList');";
+    html += "    if (data.dates.length === 0) {";
+    html += "      list.innerHTML = '<li class=\"empty-msg\">No birthdays configured</li>';";
+    html += "    } else {";
+    html += "      list.innerHTML = '';";
+    html += "      data.dates.forEach(d => {";
+    html += "        const li = document.createElement('li');";
+    html += "        li.className = 'birthday-item';";
+    html += "        li.innerHTML = '<span>' + months[d.month-1] + ' ' + d.day + '</span>' +";
+    html += "          '<button class=\"delete-btn\" onclick=\"removeBirthday(' + d.month + ',' + d.day + ')\">Delete</button>';";
+    html += "        list.appendChild(li);";
+    html += "      });";
+    html += "    }";
+    html += "    document.querySelectorAll('input[name=\"mode\"]').forEach(r => {";
+    html += "      r.checked = (parseInt(r.value) === data.mode);";
+    html += "    });";
+    html += "  });";
+    html += "}";
+    html += "function saveMode() {";
+    html += "  const mode = document.querySelector('input[name=\"mode\"]:checked').value;";
+    html += "  fetch('/birthdays/mode', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'mode='+mode})";
+    html += "    .then(() => { alert('Mode saved!'); });";
+    html += "}";
+    html += "function addBirthday() {";
+    html += "  const month = document.getElementById('month').value;";
+    html += "  const day = document.getElementById('day').value;";
+    html += "  fetch('/birthdays/add', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'month='+month+'&day='+day})";
+    html += "    .then(r => r.text()).then(msg => { alert(msg); loadBirthdays(); });";
+    html += "}";
+    html += "function removeBirthday(month, day) {";
+    html += "  if (confirm('Remove this birthday?')) {";
+    html += "    fetch('/birthdays/remove', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'month='+month+'&day='+day})";
+    html += "      .then(() => loadBirthdays());";
+    html += "  }";
+    html += "}";
+    html += "loadBirthdays();";
+    html += "</script>";
+
+    html += "</body></html>";
+    server.send(200, "text/html", html);
+}
+
+void WebServerManager::handleBirthdayList() {
+    if (!birthdayManager) {
+        server.send(500, "application/json", "{\"error\":\"Birthday manager not available\"}");
+        return;
+    }
+    server.send(200, "application/json", birthdayManager->getBirthdaysJSON());
+}
+
+void WebServerManager::handleBirthdayAdd() {
+    if (!birthdayManager) {
+        server.send(500, "text/plain", "Birthday manager not available");
+        return;
+    }
+
+    if (server.hasArg("month") && server.hasArg("day")) {
+        int month = server.arg("month").toInt();
+        int day = server.arg("day").toInt();
+
+        if (birthdayManager->addBirthday(month, day)) {
+            birthdayManager->save();
+            server.send(200, "text/plain", "Birthday added!");
+        } else {
+            server.send(400, "text/plain", "Could not add birthday (may already exist or limit reached)");
+        }
+    } else {
+        server.send(400, "text/plain", "Missing month or day parameter");
+    }
+}
+
+void WebServerManager::handleBirthdayRemove() {
+    if (!birthdayManager) {
+        server.send(500, "text/plain", "Birthday manager not available");
+        return;
+    }
+
+    if (server.hasArg("month") && server.hasArg("day")) {
+        int month = server.arg("month").toInt();
+        int day = server.arg("day").toInt();
+
+        if (birthdayManager->removeBirthday(month, day)) {
+            birthdayManager->save();
+            server.send(200, "text/plain", "Birthday removed");
+        } else {
+            server.send(400, "text/plain", "Birthday not found");
+        }
+    } else {
+        server.send(400, "text/plain", "Missing month or day parameter");
+    }
+}
+
+void WebServerManager::handleBirthdayMode() {
+    if (!birthdayManager) {
+        server.send(500, "text/plain", "Birthday manager not available");
+        return;
+    }
+
+    if (server.hasArg("mode")) {
+        int mode = server.arg("mode").toInt();
+        if (mode >= 0 && mode <= 2) {
+            birthdayManager->setDisplayMode(static_cast<BirthdayManager::DisplayMode>(mode));
+            birthdayManager->save();
+            server.send(200, "text/plain", "Mode saved");
+        } else {
+            server.send(400, "text/plain", "Invalid mode");
+        }
+    } else {
+        server.send(400, "text/plain", "Missing mode parameter");
+    }
 }

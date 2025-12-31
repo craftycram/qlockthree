@@ -278,6 +278,36 @@ void LEDMappingManager::calculateTimeDisplayWithWeekday(uint8_t hour, uint8_t mi
     }
 }
 
+void LEDMappingManager::calculateBirthdayDisplay(bool* ledStates) {
+    if (!ledStates) return;
+
+    // Light up HAPPY BIRTHDAY based on current mapping
+    switch (currentMappingType) {
+        case MappingType::MAPPING_45_GERMAN: {
+            // HAPPY and BIRTHDAY from SPECIAL_WORDS
+            illuminateWord(ledStates, Mapping45::SPECIAL_WORDS[0]);  // HAPPY
+            illuminateWord(ledStates, Mapping45::SPECIAL_WORDS[1]);  // BIRTHDAY
+        } break;
+
+        case MappingType::MAPPING_45BW_GERMAN: {
+            illuminateWord(ledStates, Mapping45BW::SPECIAL_WORDS[0]);  // HAPPY
+            illuminateWord(ledStates, Mapping45BW::SPECIAL_WORDS[1]);  // BIRTHDAY
+        } break;
+
+        case MappingType::MAPPING_110_GERMAN: {
+            // TODO: Add SPECIAL_WORDS to 110-LED mapping when implemented
+            // Fall back to 45 for now
+            illuminateWord(ledStates, Mapping45::SPECIAL_WORDS[0]);
+            illuminateWord(ledStates, Mapping45::SPECIAL_WORDS[1]);
+        } break;
+
+        default:
+            break;
+    }
+
+    Serial.println("Birthday display calculated");
+}
+
 void LEDMappingManager::clearAllLEDs(bool* ledStates) {
     if (ledStates) {
         for (uint16_t i = 0; i < currentMappingLEDCount; i++) {

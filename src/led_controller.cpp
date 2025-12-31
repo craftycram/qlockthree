@@ -1,11 +1,11 @@
 #include "led_controller.h"
 
-LEDController::LEDController() : 
-    leds(nullptr), 
+LEDController::LEDController() :
+    leds(nullptr),
     ledStates(nullptr),
-    numLeds(0), 
-    dataPin(0), 
-    brightness(128), 
+    numLeds(0),
+    dataPin(0),
+    brightness(128),
     speed(50),
     currentPattern(LEDPattern::OFF),
     solidColor(CRGB(255, 220, 180)),  // Neutral warm white instead of harsh pure white
@@ -23,7 +23,10 @@ LEDController::LEDController() :
     ledTaskHandle(nullptr),
     ledMutex(nullptr),
     taskRunning(false),
-    statusLEDsEnabled(true) {
+    statusLEDsEnabled(true),
+    birthdayManager(nullptr),
+    birthdayAlternateTimer(0),
+    showBirthdayNow(false) {
 }
 
 void LEDController::begin(int pin, int numLedsCount, int brightnessValue) {
@@ -248,12 +251,12 @@ void LEDController::showTime(int hours, int minutes) {
 
 void LEDController::showTime(int hours, int minutes, int weekday) {
     Serial.printf("DEBUG: showTime called - %02d:%02d, weekday %d\n", hours, minutes, weekday);
-    
+
     setPattern(LEDPattern::CLOCK_DISPLAY);
-    
+
     // Use mapping manager to calculate time display WITH weekday
     mappingManager.calculateTimeDisplayWithWeekday((uint8_t)hours, (uint8_t)minutes, (uint8_t)weekday, ledStates);
-    
+
     // Debug: Count how many LEDs should be lit
     int activeLEDs = 0;
     for (int i = 0; i < numLeds; i++) {
@@ -262,18 +265,17 @@ void LEDController::showTime(int hours, int minutes, int weekday) {
         }
     }
     Serial.printf("DEBUG: Time calculation resulted in %d active LEDs out of %d\n", activeLEDs, numLeds);
-    
+
     // Debug: If all LEDs are active, something is wrong
     if (activeLEDs == numLeds) {
         Serial.println("ERROR: All LEDs are active - mapping calculation error!");
-        // Print first few LED states for debugging
         for (int i = 0; i < 20 && i < numLeds; i++) {
             Serial.printf("LED[%d] = %s\n", i, ledStates[i] ? "ON" : "OFF");
         }
-        return; // Don't apply the wrong mapping
+        return;
     }
-    
-    // Apply LED states to actual LEDs - status LEDs will override in update()
+
+    // Apply LED states to actual LEDs
     for (int i = 0; i < numLeds; i++) {
         if (ledStates[i]) {
             leds[i] = solidColor;
@@ -281,9 +283,65 @@ void LEDController::showTime(int hours, int minutes, int weekday) {
             leds[i] = CRGB::Black;
         }
     }
-    
+
     Serial.printf("DEBUG: Applied time display pattern, showing %d lit LEDs\n", activeLEDs);
     FastLED.show();
+}
+
+void LEDController::showBirthdayOnly() {
+    Serial.println("DEBUG: showBirthdayOnly called");
+
+    setPattern(LEDPattern::CLOCK_DISPLAY);
+
+    // Clear and show only birthday
+    mappingManager.clearAllLEDs(ledStates);
+    mappingManager.calculateBirthdayDisplay(ledStates);
+
+    // Apply LED states
+    for (int i = 0; i < numLeds; i++) {
+        if (ledStates[i]) {
+            leds[i] = solidColor;
+        } else {
+            leds[i] = CRGB::Black;
+        }
+    }
+
+    FastLED.show();
+}
+
+void LEDController::showBirthdayOverlay(int hours, int minutes, int weekday) {
+    Serial.printf("DEBUG: showBirthdayOverlay called - %02d:%02d\n", hours, minutes);
+
+    setPattern(LEDPattern::CLOCK_DISPLAY);
+
+    // Clear LED states
+    mappingManager.clearAllLEDs(ledStates);
+
+    // Calculate time display first
+    mappingManager.calculateTimeDisplayWithWeekday((uint8_t)hours, (uint8_t)minutes, (uint8_t)weekday, ledStates);
+
+    // Overlay birthday on top
+    mappingManager.calculateBirthdayDisplay(ledStates);
+
+    // Apply LED states
+    for (int i = 0; i < numLeds; i++) {
+        if (ledStates[i]) {
+            leds[i] = solidColor;
+        } else {
+            leds[i] = CRGB::Black;
+        }
+    }
+
+    FastLED.show();
+}
+
+bool LEDController::shouldShowBirthdayInAlternateMode() {
+    unsigned long now = millis();
+    if (now - birthdayAlternateTimer >= 3000) {  // Toggle every 3 seconds
+        showBirthdayNow = !showBirthdayNow;
+        birthdayAlternateTimer = now;
+    }
+    return showBirthdayNow;
 }
 
 void LEDController::showSetupMode() {

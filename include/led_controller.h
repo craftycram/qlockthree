@@ -4,6 +4,7 @@
 #include <FastLED.h>
 #include <Preferences.h>
 #include "led_mapping_manager.h"
+#include "birthday_manager.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
@@ -35,6 +36,9 @@ public:
     // qlockthree specific functions
     void showTime(int hours, int minutes);
     void showTime(int hours, int minutes, int weekday);
+    void showBirthdayOnly();
+    void showBirthdayOverlay(int hours, int minutes, int weekday);
+    bool shouldShowBirthdayInAlternateMode();  // Returns true when birthday should show in alternate mode
     void showSetupMode();
     void showUpdateMode();
     void showWiFiConnecting();
@@ -52,6 +56,9 @@ public:
     void setMapping(MappingType type);
     void setCustomMapping(const char* mappingId);
     LEDMappingManager* getMappingManager() { return &mappingManager; }
+
+    // Birthday manager
+    void setBirthdayManager(BirthdayManager* manager) { birthdayManager = manager; }
     
     // Utility functions
     void clear();
@@ -80,6 +87,7 @@ public:
 private:
     Preferences preferences;
     LEDMappingManager mappingManager;
+    BirthdayManager* birthdayManager;
     CRGB* leds;
     bool* ledStates; // State array for mapping calculations
     int numLeds;
@@ -106,6 +114,10 @@ private:
     unsigned long statusLEDUpdate;
     uint8_t statusLEDStep;
     bool statusLEDsEnabled;
+
+    // Birthday alternate mode state
+    unsigned long birthdayAlternateTimer;
+    bool showBirthdayNow;
     
     // FreeRTOS task management
     TaskHandle_t ledTaskHandle;
