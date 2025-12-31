@@ -49,7 +49,10 @@ void LEDMappingManager::begin() {
 
 void LEDMappingManager::loadMapping(MappingType type) {
     Serial.printf("MAPPING DEBUG: loadMapping called with type %d\n", (int)type);
-    
+
+    // Update the current mapping type
+    currentMappingType = type;
+
     // Load mapping directly using namespace + macro - no separate functions needed!
     switch (type) {
         case MappingType::MAPPING_45_GERMAN: {
