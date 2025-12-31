@@ -16,6 +16,11 @@ WebServerManager webServer(WEB_SERVER_PORT);
 LEDController ledController;
 TimeManager timeManager;
 
+// Debug mode state (resets on reboot)
+bool debugModeEnabled = false;
+int debugHour = 12;
+int debugMinute = 0;
+
 void setup() {
     // Initialize LED Controller FIRST to ensure threading starts immediately
     // LED count will be set by the mapping manager during initialization
@@ -93,8 +98,9 @@ void setup() {
         // Initialize Auto Updater with LED controller for feedback
         autoUpdater.begin("craftycram/qlockthree", CURRENT_VERSION, UPDATE_CHECK_INTERVAL, &ledController);
         
-        // Initialize Web Server with TimeManager
-        webServer.begin(&wifiManager, &autoUpdater, &ledController, &timeManager);
+        // Initialize Web Server with TimeManager and debug state
+        webServer.begin(&wifiManager, &autoUpdater, &ledController, &timeManager,
+                        &debugModeEnabled, &debugHour, &debugMinute);
         
         // Initial update check (show update mode during check)
         if (autoUpdater.isUpdateAvailable()) {
@@ -317,13 +323,23 @@ void loop() {
             clockStarted = false;
         }
         
-        // Get accurate time from TimeManager (only if valid)
+        // Get accurate time from TimeManager (only if valid) or use debug time
         if (timeManager.isTimeSynced() && hasValidTime) {
-            struct tm currentTime = timeManager.getCurrentTime();
-            int hours = currentTime.tm_hour;
-            int minutes = currentTime.tm_min;
-            int weekday = currentTime.tm_wday;  // 0=Sunday, 1=Monday, ..., 6=Saturday
-            
+            int hours, minutes, weekday;
+
+            if (debugModeEnabled) {
+                // Use debug time override
+                hours = debugHour;
+                minutes = debugMinute;
+                weekday = 0;  // Fixed weekday in debug mode
+            } else {
+                // Use real time
+                struct tm currentTime = timeManager.getCurrentTime();
+                hours = currentTime.tm_hour;
+                minutes = currentTime.tm_min;
+                weekday = currentTime.tm_wday;  // 0=Sunday, 1=Monday, ..., 6=Saturday
+            }
+
             // Show time on qlockthree LEDs WITH weekday
             if (ledController.getCurrentPattern() == LEDPattern::CLOCK_DISPLAY) {
                 ledController.showTime(hours, minutes, weekday);

@@ -13,15 +13,21 @@ class TimeManager;
 class WebServerManager {
 public:
     WebServerManager(int port = 80);
-    void begin(WiFiManagerHelper* wifiHelper, AutoUpdater* updater, LEDController* ledController = nullptr, TimeManager* timeManager = nullptr);
+    void begin(WiFiManagerHelper* wifiHelper, AutoUpdater* updater, LEDController* ledController = nullptr, TimeManager* timeManager = nullptr,
+               bool* debugModeEnabled = nullptr, int* debugHour = nullptr, int* debugMinute = nullptr);
     void handleClient();
-    
+
 private:
     WebServer server;
     WiFiManagerHelper* wifiManagerHelper;
     AutoUpdater* autoUpdater;
     LEDController* ledController;
     TimeManager* timeManager;
+
+    // Debug mode state pointers
+    bool* debugModeEnabled;
+    int* debugHour;
+    int* debugMinute;
     
     void setupRoutes();
     
@@ -46,7 +52,13 @@ private:
     void handleLEDPattern();
     void handleLEDMapping();
     void handleSetLEDMapping();
-    
+
+    // Debug mode handlers
+    void handleDevPage();
+    void handleDevStatus();
+    void handleDevSet();
+    void handleDevToggle();
+
     // HTML/JSON generators
     String getStatusHTML();
     String getStatusJSON();
@@ -54,6 +66,8 @@ private:
     String getLEDStatusJSON();
     String getTimeConfigHTML();
     String getTimeStatusJSON();
+    String getDevPageHTML();
+    String getDevStatusJSON();
 };
 
 #endif // WEB_SERVER_MANAGER_H

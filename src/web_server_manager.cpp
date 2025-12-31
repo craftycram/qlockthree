@@ -6,14 +6,19 @@
 #include "config.h"
 #include <WiFi.h>
 
-WebServerManager::WebServerManager(int port) : server(port), wifiManagerHelper(nullptr), autoUpdater(nullptr), ledController(nullptr), timeManager(nullptr) {
+WebServerManager::WebServerManager(int port) : server(port), wifiManagerHelper(nullptr), autoUpdater(nullptr), ledController(nullptr), timeManager(nullptr),
+    debugModeEnabled(nullptr), debugHour(nullptr), debugMinute(nullptr) {
 }
 
-void WebServerManager::begin(WiFiManagerHelper* wifiHelper, AutoUpdater* updater, LEDController* ledCtrl, TimeManager* timeMgr) {
+void WebServerManager::begin(WiFiManagerHelper* wifiHelper, AutoUpdater* updater, LEDController* ledCtrl, TimeManager* timeMgr,
+                             bool* debugEnabled, int* debugH, int* debugM) {
     wifiManagerHelper = wifiHelper;
     autoUpdater = updater;
     ledController = ledCtrl;
     timeManager = timeMgr;
+    debugModeEnabled = debugEnabled;
+    debugHour = debugH;
+    debugMinute = debugM;
     
     setupRoutes();
     server.begin();
@@ -122,9 +127,15 @@ void WebServerManager::setupRoutes() {
         if (server.hasArg("save")) {
             ledController->saveSettings();
         }
-        
+
         server.send(200, "text/plain", "LED settings updated");
     });
+
+    // Debug mode endpoints (hidden at /dev)
+    server.on("/dev", [this]() { handleDevPage(); });
+    server.on("/dev/status", [this]() { handleDevStatus(); });
+    server.on("/dev/set", HTTP_POST, [this]() { handleDevSet(); });
+    server.on("/dev/toggle", HTTP_POST, [this]() { handleDevToggle(); });
 }
 
 void WebServerManager::handleRoot() {
@@ -861,4 +872,168 @@ void WebServerManager::handleSetLEDMapping() {
     } else {
         server.send(400, "text/plain", "Missing mapping type parameter");
     }
+}
+
+// Debug mode handlers
+void WebServerManager::handleDevPage() {
+    server.send(200, "text/html", getDevPageHTML());
+}
+
+void WebServerManager::handleDevStatus() {
+    server.send(200, "application/json", getDevStatusJSON());
+}
+
+void WebServerManager::handleDevSet() {
+    if (!debugModeEnabled || !debugHour || !debugMinute) {
+        server.send(500, "text/plain", "Debug mode not available");
+        return;
+    }
+
+    if (server.hasArg("hour") && server.hasArg("minute")) {
+        int hour = server.arg("hour").toInt();
+        int minute = server.arg("minute").toInt();
+
+        if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+            *debugHour = hour;
+            *debugMinute = minute;
+            Serial.printf("Debug time set to %02d:%02d\n", hour, minute);
+            server.send(200, "text/plain", "Time set");
+        } else {
+            server.send(400, "text/plain", "Invalid time values");
+        }
+    } else {
+        server.send(400, "text/plain", "Missing hour or minute parameter");
+    }
+}
+
+void WebServerManager::handleDevToggle() {
+    if (!debugModeEnabled) {
+        server.send(500, "text/plain", "Debug mode not available");
+        return;
+    }
+
+    *debugModeEnabled = !(*debugModeEnabled);
+    Serial.printf("Debug mode %s\n", *debugModeEnabled ? "enabled" : "disabled");
+    server.send(200, "text/plain", *debugModeEnabled ? "enabled" : "disabled");
+}
+
+String WebServerManager::getDevStatusJSON() {
+    String json = "{";
+    json += "\"enabled\":" + String(debugModeEnabled && *debugModeEnabled ? "true" : "false") + ",";
+    json += "\"hour\":" + String(debugHour ? *debugHour : 0) + ",";
+    json += "\"minute\":" + String(debugMinute ? *debugMinute : 0) + ",";
+
+    // Get real time
+    if (timeManager) {
+        struct tm currentTime = timeManager->getCurrentTime();
+        json += "\"realHour\":" + String(currentTime.tm_hour) + ",";
+        json += "\"realMinute\":" + String(currentTime.tm_min);
+    } else {
+        json += "\"realHour\":0,\"realMinute\":0";
+    }
+
+    json += "}";
+    return json;
+}
+
+String WebServerManager::getDevPageHTML() {
+    String html = "<!DOCTYPE html><html><head>";
+    html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+    html += "<title>Debug Mode</title>";
+    html += "<style>";
+    html += "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; ";
+    html += "background: #1a1a2e; color: #eee; margin: 0; padding: 20px; }";
+    html += ".container { max-width: 400px; margin: 0 auto; }";
+    html += "h1 { color: #ff6b6b; font-size: 1.5em; }";
+    html += ".status { padding: 15px; border-radius: 8px; margin: 15px 0; font-size: 1.2em; text-align: center; }";
+    html += ".status.enabled { background: #2d5a27; border: 2px solid #4ade80; }";
+    html += ".status.disabled { background: #5a2727; border: 2px solid #f87171; }";
+    html += ".group { background: #16213e; padding: 15px; border-radius: 8px; margin: 15px 0; }";
+    html += "label { display: block; margin: 10px 0 5px; color: #a0a0a0; }";
+    html += "input[type='number'] { width: 80px; padding: 10px; font-size: 1.2em; border: 1px solid #444; ";
+    html += "border-radius: 4px; background: #0f0f23; color: #fff; text-align: center; }";
+    html += ".time-input { display: flex; align-items: center; gap: 10px; justify-content: center; }";
+    html += ".time-input span { font-size: 1.5em; color: #888; }";
+    html += ".button { display: inline-block; padding: 12px 24px; margin: 5px; border: none; ";
+    html += "border-radius: 6px; font-size: 1em; cursor: pointer; text-decoration: none; }";
+    html += ".button.primary { background: #4361ee; color: white; }";
+    html += ".button.toggle { background: #f72585; color: white; }";
+    html += ".button.back { background: #444; color: white; }";
+    html += ".buttons { text-align: center; margin-top: 20px; }";
+    html += ".info { margin-top: 15px; padding: 10px; background: #0f0f23; border-radius: 4px; text-align: center; }";
+    html += ".info .label { color: #888; font-size: 0.9em; }";
+    html += ".info .value { font-size: 1.3em; font-family: monospace; }";
+    html += "</style></head><body>";
+    html += "<div class='container'>";
+    html += "<h1>Debug Mode</h1>";
+
+    // Status indicator
+    bool enabled = debugModeEnabled && *debugModeEnabled;
+    html += "<div id='status' class='status " + String(enabled ? "enabled" : "disabled") + "'>";
+    html += enabled ? "DEBUG ENABLED" : "DEBUG DISABLED";
+    html += "</div>";
+
+    // Time input
+    html += "<div class='group'>";
+    html += "<label>Set Debug Time:</label>";
+    html += "<div class='time-input'>";
+    html += "<input type='number' id='hour' min='0' max='23' value='" + String(debugHour ? *debugHour : 12) + "'>";
+    html += "<span>:</span>";
+    html += "<input type='number' id='minute' min='0' max='59' value='" + String(debugMinute ? *debugMinute : 0) + "'>";
+    html += "</div>";
+    html += "</div>";
+
+    // Info displays
+    html += "<div class='group'>";
+    html += "<div class='info'>";
+    html += "<div class='label'>Debug Display</div>";
+    html += "<div class='value' id='debugTime'>--:--</div>";
+    html += "</div>";
+    html += "<div class='info'>";
+    html += "<div class='label'>Real Time</div>";
+    html += "<div class='value' id='realTime'>--:--</div>";
+    html += "</div>";
+    html += "</div>";
+
+    // Buttons
+    html += "<div class='buttons'>";
+    html += "<button class='button primary' onclick='setTime()'>Set Time</button>";
+    html += "<button class='button toggle' onclick='toggle()' id='toggleBtn'>" + String(enabled ? "Disable" : "Enable") + "</button>";
+    html += "</div>";
+
+    html += "<div class='buttons'>";
+    html += "<a href='/' class='button back'>Back to Home</a>";
+    html += "</div>";
+
+    html += "</div>";
+
+    // JavaScript
+    html += "<script>";
+    html += "function updateStatus() {";
+    html += "  fetch('/dev/status').then(r=>r.json()).then(d=>{";
+    html += "    document.getElementById('debugTime').textContent = ";
+    html += "      String(d.hour).padStart(2,'0')+':'+String(d.minute).padStart(2,'0');";
+    html += "    document.getElementById('realTime').textContent = ";
+    html += "      String(d.realHour).padStart(2,'0')+':'+String(d.realMinute).padStart(2,'0');";
+    html += "    var s=document.getElementById('status');";
+    html += "    s.className='status '+(d.enabled?'enabled':'disabled');";
+    html += "    s.textContent=d.enabled?'DEBUG ENABLED':'DEBUG DISABLED';";
+    html += "    document.getElementById('toggleBtn').textContent=d.enabled?'Disable':'Enable';";
+    html += "  });";
+    html += "}";
+    html += "function setTime() {";
+    html += "  var h=document.getElementById('hour').value;";
+    html += "  var m=document.getElementById('minute').value;";
+    html += "  fetch('/dev/set',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},";
+    html += "    body:'hour='+h+'&minute='+m}).then(()=>updateStatus());";
+    html += "}";
+    html += "function toggle() {";
+    html += "  fetch('/dev/toggle',{method:'POST'}).then(()=>updateStatus());";
+    html += "}";
+    html += "updateStatus();";
+    html += "setInterval(updateStatus,1000);";
+    html += "</script>";
+
+    html += "</body></html>";
+    return html;
 }
