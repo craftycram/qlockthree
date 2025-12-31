@@ -1,22 +1,16 @@
 #ifndef MAPPING_45_H
 #define MAPPING_45_H
 
-#include <stdint.h>
-
-struct WordMapping {
-    const char* word;
-    uint8_t start_led;
-    uint8_t length;
-    bool active;
-};
+#include "mapping_base.h"
 
 namespace Mapping45 {
 
-#define MAPPING_NAME "45cm qlockthree 11x11"
-#define MAPPING_ID "45cm"
-#define MAPPING_LANGUAGE "DE"
-#define MAPPING_TOTAL_LEDS 125
-#define MAPPING_DESCRIPTION "45cm German qlockthree with 11x11 grid, weekdays, and 4 corner dots"
+// Mapping metadata (using constexpr to avoid macro conflicts with other mappings)
+static constexpr const char* MAPPING_NAME = "45cm qlockthree 11x11";
+static constexpr const char* MAPPING_ID = "45cm";
+static constexpr const char* MAPPING_LANGUAGE = "DE";
+static constexpr uint16_t MAPPING_TOTAL_LEDS = 125;
+static constexpr const char* MAPPING_DESCRIPTION = "45cm German qlockthree with 11x11 grid, weekdays, and 4 corner dots";
 
 static const WordMapping BASE_WORDS[] = {
     {"ES", 112, 2, false},

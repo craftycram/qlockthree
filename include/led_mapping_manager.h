@@ -1,15 +1,13 @@
 #ifndef LED_MAPPING_MANAGER_H
 #define LED_MAPPING_MANAGER_H
 
-#include <stdint.h>
 #include <Preferences.h>
-
-// Forward declarations
-struct WordMapping;
+#include "../mappings/mapping_base.h"
 
 // Mapping types
 enum class MappingType {
     MAPPING_45_GERMAN,
+    MAPPING_45BW_GERMAN,
     MAPPING_110_GERMAN,
     MAPPING_CUSTOM,
     MAPPING_COUNT
