@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 
-// Word mapping structure - shared across ALL mappings (global scope)
 struct WordMapping {
     const char* word;
     uint8_t start_led;
@@ -11,78 +10,54 @@ struct WordMapping {
     bool active;
 };
 
-// Wrap everything mapping-specific in a namespace to avoid symbol conflicts
 namespace Mapping45 {
 
-// qlockthree 11x11 Layout Mapping Configuration
-// This file defines the word-to-LED mappings for the 45cm qlockthree with 11x11 layout
-// Layout:
-// Row 0: ESKISTLFÜNF (0-10)
-// Row 1: ZEHNZWANZIG (11-21)  
-// Row 2: DREIVIERTEL (22-32)
-// Row 3: NACHAPPYVOR (33-43)
-// Row 4: HALBIRTHDAY (44-54)
-// Row 5: DRZWÖLFÜNFX (55-65)
-// Row 6: ZEHNEUNDREI (66-76)
-// Row 7: ZWEINSIEBEN (77-87)
-// Row 8: ELFVIERACHT (88-98)
-// Row 9: SECHSIUHRYE (99-109)
-// Row 10: MDMDFSS + 4 corner dots (110-120 + corners)
-
-// Mapping metadata
 #define MAPPING_NAME "45cm qlockthree 11x11"
 #define MAPPING_ID "45cm"
 #define MAPPING_LANGUAGE "DE"
 #define MAPPING_TOTAL_LEDS 125
 #define MAPPING_DESCRIPTION "45cm German qlockthree with 11x11 grid, weekdays, and 4 corner dots"
 
-// Time word mappings - Base words always shown
 static const WordMapping BASE_WORDS[] = {
-    {"ES", 112, 2, false},       // Row 0: ES (0-1)
-    {"IST", 115, 3, false},      // Row 0: IST (3-5)
+    {"ES", 112, 2, false},
+    {"IST", 115, 3, false},
 };
 
-// Hour mappings (0-23)
 static const WordMapping HOUR_WORDS[] = {
-    {"ZWÖLF", 61, 5, false},   // Row 5: ZWÖLF (57-60) - skipping DR
-    {"EINS", 40, 4, false},    // Row 7: EINS (78-81) - inside ZWEINSIEBEN
-    {"ZWEI", 42, 4, false},    // Row 7: ZWEI (77-80)
-    {"DREI", 53, 4, false},    // Row 6: DREI (73-76)
-    {"VIER", 27, 4, false},    // Row 8: VIER (91-94)
-    {"FÜNF", 58, 4, false},    // Row 5: FÜNF (61-64)
-    {"SECHS", 19, 5, false},   // Row 9: SECHS (99-103)
-    {"SIEBEN", 35, 6, false},  // Row 7: SIEBEN (82-87)
-    {"ACHT", 31, 4, false},    // Row 8: ACHT (95-98)
-    {"NEUN", 49, 4, false},    // Row 6: NEUN (67-70) - inside ZEHNEUNDREI
-    {"ZEHN", 46, 4, false},    // Row 6: ZEHN (66-69)
-    {"ELF", 24, 3, false},     // Row 8: ELF (88-90)
+    {"ZWÖLF", 61, 5, false},
+    {"EINS", 40, 4, false},
+    {"ZWEI", 42, 4, false},
+    {"DREI", 53, 4, false},
+    {"VIER", 27, 4, false},
+    {"FÜNF", 58, 4, false},
+    {"SECHS", 19, 5, false},
+    {"SIEBEN", 35, 6, false},
+    {"ACHT", 31, 4, false},
+    {"NEUN", 49, 4, false},
+    {"ZEHN", 46, 4, false},
+    {"ELF", 24, 3, false},
 };
 
-// Minute mappings (5-minute intervals)
 static const WordMapping MINUTE_WORDS[] = {
-    {"FÜNF", 119, 4, false},     // Row 0: FÜNF (7-10)
-    {"ZEHN", 108, 4, false},    // Row 1: ZEHN (11-14)
-    {"VIERTEL", 94, 7, false}, // Row 2: VIERTEL (26-32)
-    {"ZWANZIG", 101, 7, false}, // Row 1: ZWANZIG (15-21)
-    {"DREIVIERTEL", 90, 11, false}, // Row 2: DREIVIERTEL (22-32)
-    {"HALB", 68, 4, false},    // Row 4: HALB (44-47)
+    {"FÜNF", 119, 4, false},
+    {"ZEHN", 108, 4, false},
+    {"VIERTEL", 94, 7, false},
+    {"ZWANZIG", 101, 7, false},
+    {"DREIVIERTEL", 90, 11, false},
+    {"HALB", 68, 4, false},
 };
 
-// Connector words
 static const WordMapping CONNECTOR_WORDS[] = {
-    {"VOR", 79, 3, false},     // Row 3: VOR (40-42)
-    {"NACH", 86, 4, false},    // Row 3: NACH (33-36)
-    {"UHR", 15, 3, false},    // Row 9: UHR (105-107)
+    {"VOR", 79, 3, false},
+    {"NACH", 86, 4, false},
+    {"UHR", 15, 3, false},
 };
 
-// Minute dots for precise time (corner LEDs based on 125 LED total)
-static const uint8_t MINUTE_DOTS[] = {124, 123, 12, 0}; // corner positions from image
+static const uint8_t MINUTE_DOTS[] = {124, 123, 12, 0};
 
-// Status LED configuration (using constexpr instead of #define to work with namespaces)
-static constexpr uint8_t STATUS_LED_WIFI = 11;      // WiFi status LED (index 11)
-static constexpr uint8_t STATUS_LED_SYSTEM = 10;    // System/NTP/OTA/Update status LED (index 10)
+static constexpr uint8_t STATUS_LED_WIFI = 11;
+static constexpr uint8_t STATUS_LED_SYSTEM = 10;
 
-// Startup animation sequence (0-based array indices)
 static const uint8_t STARTUP_SEQUENCE[] = {
     // 1st row: indices 112-122
     112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122,
@@ -111,7 +86,6 @@ static const uint8_t STARTUP_SEQUENCE[] = {
 // Calculate sequence length (using constexpr instead of #define to work with namespaces)
 static constexpr uint16_t STARTUP_SEQUENCE_LENGTH = sizeof(STARTUP_SEQUENCE) / sizeof(STARTUP_SEQUENCE[0]);
 
-// Weekday mappings (Bottom row: M D M D F S S)
 static const WordMapping WEEKDAY_WORDS[] = {
     {"M", 3, 1, false},        // Monday (Montag)
     {"D", 4, 1, false},        // Tuesday (Dienstag) 
@@ -143,7 +117,7 @@ static const WordMapping SPECIAL_WORDS[] = {
 // | 30-34   | ES IST HALB X+1           | HALB + hour                      |
 // | 35-39   | ES IST FÜNF NACH HALB X+1 | prefix FÜNF + NACH + HALB + hour |
 // | 40-44   | ES IST ZWANZIG VOR X+1    | ZWANZIG + VOR + hour             |
-// | 45-49   | ES IST DREIVIERTEL X+1    | DREIVIERTEL + hour               |
+// | 45-49   | ES IST VIERTEL VOR X+1    | VIERTEL + VOR + hour             |
 // | 50-54   | ES IST ZEHN VOR X+1       | ZEHN + VOR + hour                |
 // | 55-59   | ES IST FÜNF VOR X+1       | FÜNF + VOR + hour                |
 // +---------+---------------------------+----------------------------------+
