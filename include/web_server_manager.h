@@ -72,14 +72,10 @@ private:
     void handleBirthdayRemove();
     void handleBirthdayMode();
 
-    // HTML/JSON generators
-    String getStatusHTML();
+    // JSON generators
     String getStatusJSON();
-    String getLEDConfigHTML();
     String getLEDStatusJSON();
-    String getTimeConfigHTML();
     String getTimeStatusJSON();
-    String getDevPageHTML();
     String getDevStatusJSON();
 };
 

@@ -215,6 +215,11 @@ String TimeManager::getStatusJSON() {
     json += "\"" + ntpServer2 + "\",";
     json += "\"" + ntpServer3 + "\"";
     json += "],";
+    json += "\"ntp_server\":\"" + ntpServer1 + "\",";
+    json += "\"day\":" + String(timeinfo.tm_mday) + ",";
+    json += "\"month\":" + String(timeinfo.tm_mon + 1) + ",";
+    json += "\"year\":" + String(timeinfo.tm_year + 1900) + ",";
+    json += "\"synced\":" + String(timeSynced ? "true" : "false") + ",";
     json += "\"time_synced\":" + String(timeSynced ? "true" : "false") + ",";
     json += "\"last_sync\":" + String(lastSyncTime) + ",";
     json += "\"sync_age\":" + String(millis() - lastSyncTime) + ",";

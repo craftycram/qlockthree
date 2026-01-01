@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>qlockthree LED Mapping</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+  <div class="container">
+    <h1>LED Mapping</h1>
+
+    <!-- Current Mapping Info -->
+    <div id="current-info" class="mapping-group current-mapping">
+      <h3>Current Mapping</h3>
+      <div class="info">
+        <strong>Mapping:</strong> <span id="current-mapping">Loading...</span>
+      </div>
+      <div class="info">
+        <strong>LED Count:</strong> <span id="led-count">Loading...</span>
+      </div>
+      <div class="info">
+        <strong>Rotation:</strong> <span id="current-rotation">Loading...</span>
+      </div>
+    </div>
+
+    <!-- Mapping Selection -->
+    <div class="mapping-group">
+      <h3>Select Mapping</h3>
+      <label for="mapping-select">LED Layout:</label>
+      <select id="mapping-select">
+        <option value="0">45cm German (125 LEDs)</option>
+        <option value="1">45cm Swabian (125 LEDs)</option>
+        <option value="2">110-LED Layout</option>
+      </select>
+      <p><small>
+        <strong>German:</strong> Standard German time display (ES IST...)<br>
+        <strong>Swabian:</strong> Swabian dialect variant (VIERTEL NACH vs VIERTEL)<br>
+        <strong>110-LED:</strong> Compact layout with 110 LEDs
+      </small></p>
+      <button onclick="setMapping()" class="button mapping-btn">Apply Mapping</button>
+    </div>
+
+    <!-- Rotation Selection -->
+    <div class="mapping-group">
+      <h3>Display Rotation</h3>
+      <label for="rotation-select">Rotation:</label>
+      <select id="rotation-select">
+        <option value="0">0 degrees (Normal)</option>
+        <option value="90">90 degrees (Clockwise)</option>
+        <option value="180">180 degrees (Upside down)</option>
+        <option value="270">270 degrees (Counter-clockwise)</option>
+      </select>
+      <p><small>Rotate the display if your clock is mounted at a different orientation.</small></p>
+      <button onclick="setRotation()" class="button primary">Apply Rotation</button>
+    </div>
+
+    <div class="buttons">
+      <a href="/led" class="button back">Back to LED Config</a>
+      <a href="/" class="button">Home</a>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/utils.js"></script>
+  <script>
+    const mappingNames = {
+      0: '45cm German',
+      1: '45cm Swabian',
+      2: '110-LED Layout'
+    };
+
+    async function loadMappingStatus() {
+      try {
+        const data = await API.get('/led/status');
+
+        setText('current-mapping', mappingNames[data.mapping_type] || 'Unknown');
+        setText('led-count', data.num_leds + ' LEDs');
+        setText('current-rotation', (data.rotation || 0) + ' degrees');
+
+        // Set current values in dropdowns
+        document.getElementById('mapping-select').value = data.mapping_type || 0;
+        document.getElementById('rotation-select').value = data.rotation || 0;
+      } catch (err) {
+        console.error('Error loading mapping status:', err);
+      }
+    }
+
+    async function setMapping() {
+      const type = document.getElementById('mapping-select').value;
+      const name = mappingNames[type];
+      if (confirm('Change LED mapping to ' + name + '? This will reset LED positions.')) {
+        await API.post('/led/mapping/set', { type });
+        setTimeout(loadMappingStatus, 1000);
+      }
+    }
+
+    async function setRotation() {
+      const degrees = document.getElementById('rotation-select').value;
+      await API.post('/led/rotation/set', { degrees });
+      setTimeout(loadMappingStatus, 500);
+    }
+
+    // Load on page load
+    loadMappingStatus();
+  </script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Birthday Settings</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+  <div class="container" style="max-width:500px">
+    <h1>Birthday Settings</h1>
+
+    <!-- Display mode selection -->
+    <div class="group">
+      <h3>Display Mode</h3>
+      <div class="radio-group" id="modeGroup">
+        <label><input type="radio" name="mode" value="0"> Replace - Show only HAPPY BIRTHDAY</label>
+        <label><input type="radio" name="mode" value="1"> Alternate - Switch between time and HAPPY BIRTHDAY</label>
+        <label><input type="radio" name="mode" value="2"> Overlay - Show HAPPY BIRTHDAY with time</label>
+      </div>
+      <button class="button primary" onclick="saveMode()">Save Mode</button>
+    </div>
+
+    <!-- Birthday list -->
+    <div class="group">
+      <h3>Birthday Dates</h3>
+      <ul class="birthday-list" id="birthdayList">
+        <li class="empty-msg">Loading...</li>
+      </ul>
+    </div>
+
+    <!-- Add birthday form -->
+    <div class="group">
+      <h3>Add Birthday</h3>
+      <div class="add-form">
+        <select id="month">
+          <option value="1">January</option>
+          <option value="2">February</option>
+          <option value="3">March</option>
+          <option value="4">April</option>
+          <option value="5">May</option>
+          <option value="6">June</option>
+          <option value="7">July</option>
+          <option value="8">August</option>
+          <option value="9">September</option>
+          <option value="10">October</option>
+          <option value="11">November</option>
+          <option value="12">December</option>
+        </select>
+        <select id="day"></select>
+        <button class="button success" onclick="addBirthday()">Add</button>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <a href="/" class="button back">Back to Home</a>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/utils.js"></script>
+  <script>
+    // Populate day dropdown
+    const daySelect = document.getElementById('day');
+    for (let i = 1; i <= 31; i++) {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = i;
+      daySelect.appendChild(opt);
+    }
+
+    async function loadBirthdays() {
+      try {
+        const data = await API.get('/birthdays/list');
+
+        // Set mode radio
+        const radios = document.querySelectorAll('input[name="mode"]');
+        radios.forEach(r => r.checked = (parseInt(r.value) === data.mode));
+
+        // Render birthday list
+        const list = document.getElementById('birthdayList');
+        if (data.dates && data.dates.length > 0) {
+          list.innerHTML = data.dates.map(d =>
+            '<li class="birthday-item">' +
+            '<span>' + getMonthName(d.month) + ' ' + d.day + '</span>' +
+            '<button class="delete-btn" onclick="removeBirthday(' + d.month + ',' + d.day + ')">Delete</button>' +
+            '</li>'
+          ).join('');
+        } else {
+          list.innerHTML = '<li class="empty-msg">No birthdays configured</li>';
+        }
+      } catch (err) {
+        console.error('Error loading birthdays:', err);
+      }
+    }
+
+    async function saveMode() {
+      const mode = document.querySelector('input[name="mode"]:checked');
+      if (mode) {
+        await API.post('/birthdays/mode', { mode: mode.value });
+        loadBirthdays();
+      }
+    }
+
+    async function addBirthday() {
+      const month = document.getElementById('month').value;
+      const day = document.getElementById('day').value;
+      await API.post('/birthdays/add', { month, day });
+      loadBirthdays();
+    }
+
+    async function removeBirthday(month, day) {
+      if (confirm('Remove birthday ' + getMonthName(month) + ' ' + day + '?')) {
+        await API.post('/birthdays/remove', { month, day });
+        loadBirthdays();
+      }
+    }
+
+    // Load on page load
+    loadBirthdays();
+  </script>
+</body>
+</html>
