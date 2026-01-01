@@ -120,14 +120,8 @@ void WebServerManager::setupRoutes() {
             Serial.printf("DEBUG: Parsed color values - R:%d, G:%d, B:%d\n", r, g, b);
             
             if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255) {
-                Serial.println("DEBUG: Color values are valid, creating CRGB object");
                 CRGB color = CRGB(r, g, b);
-                Serial.printf("DEBUG: Calling setSolidColor with RGB(%d, %d, %d)\n", r, g, b);
                 ledController->setSolidColor(color);
-                // Set pattern to solid color to show the new color immediately
-                Serial.println("DEBUG: Calling setPattern(SOLID_COLOR)");
-                ledController->setPattern(LEDPattern::SOLID_COLOR);
-                Serial.println("DEBUG: Calling saveSettings()");
                 ledController->saveSettings();
                 Serial.printf("Color changed to RGB(%d, %d, %d)\n", r, g, b);
             } else {
