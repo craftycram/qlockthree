@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Debug Mode</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/dark.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Debug Mode</h1>
+
+    <!-- Status indicator -->
+    <div id="status" class="status disabled">DEBUG DISABLED</div>
+
+    <!-- Time input -->
+    <div class="group">
+      <label>Set Debug Time:</label>
+      <div class="time-input">
+        <input type="number" id="hour" min="0" max="23" value="12">
+        <span>:</span>
+        <input type="number" id="minute" min="0" max="59" value="0">
+      </div>
+    </div>
+
+    <!-- Info displays -->
+    <div class="group">
+      <div class="info">
+        <div class="label">Debug Display</div>
+        <div class="value" id="debugTime">--:--</div>
+      </div>
+      <div class="info">
+        <div class="label">Real Time</div>
+        <div class="value" id="realTime">--:--</div>
+      </div>
+    </div>
+
+    <!-- Control buttons -->
+    <div class="buttons">
+      <button class="button primary" onclick="setTime()">Set Time</button>
+      <button class="button toggle" onclick="toggle()" id="toggleBtn">Enable</button>
+    </div>
+
+    <!-- System controls -->
+    <div class="group" style="margin-top:30px">
+      <label style="text-align:center">System Controls:</label>
+      <div class="buttons">
+        <button class="button warning" onclick="reboot()">Reboot</button>
+        <button class="button danger" onclick="factoryReset()">Factory Reset</button>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <a href="/" class="button back">Back to Home</a>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/utils.js"></script>
+  <script>
+    async function updateStatus() {
+      try {
+        const d = await API.get('/dev/status');
+
+        setText('debugTime', padZero(d.hour) + ':' + padZero(d.minute));
+        setText('realTime', padZero(d.realHour) + ':' + padZero(d.realMinute));
+
+        const s = document.getElementById('status');
+        s.className = 'status ' + (d.enabled ? 'enabled' : 'disabled');
+        s.textContent = d.enabled ? 'DEBUG ENABLED' : 'DEBUG DISABLED';
+
+        setText('toggleBtn', d.enabled ? 'Disable' : 'Enable');
+      } catch (err) {
+        console.error('Error updating status:', err);
+      }
+    }
+
+    async function setTime() {
+      const h = document.getElementById('hour').value;
+      const m = document.getElementById('minute').value;
+      await API.post('/dev/set', { hour: h, minute: m });
+      updateStatus();
+    }
+
+    async function toggle() {
+      await API.post('/dev/toggle');
+      updateStatus();
+    }
+
+    async function reboot() {
+      if (confirm('Reboot the clock?')) {
+        await API.post('/dev/reboot');
+        document.body.innerHTML = '<div class="reboot-message"><h2>Rebooting...</h2><p>Please wait</p></div>';
+      }
+    }
+
+    async function factoryReset() {
+      if (confirm('WARNING: This will delete ALL settings including WiFi credentials.\n\nAre you sure you want to factory reset?')) {
+        await API.post('/dev/factory-reset');
+        document.body.innerHTML = '<div class="reboot-message"><h2>Factory Reset...</h2><p>All settings cleared. Rebooting...</p></div>';
+      }
+    }
+
+    // Update status on page load and every second
+    updateStatus();
+    setInterval(updateStatus, 1000);
+  </script>
+</body>
+</html>

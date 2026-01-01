@@ -1,0 +1,177 @@
+/* qlockthree Dark Theme - Dev Page */
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #1a1a2e;
+  color: #eee;
+  margin: 0;
+  padding: 20px;
+}
+
+.container {
+  max-width: 400px;
+  margin: 0 auto;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+h1 {
+  color: #ff6b6b;
+  font-size: 1.5em;
+}
+
+/* Status Indicator */
+.status {
+  padding: 15px;
+  border-radius: 8px;
+  margin: 15px 0;
+  font-size: 1.2em;
+  text-align: center;
+}
+
+.status.enabled {
+  background: #2d5a27;
+  border: 2px solid #4ade80;
+}
+
+.status.disabled {
+  background: #5a2727;
+  border: 2px solid #f87171;
+}
+
+/* Groups */
+.group {
+  background: #16213e;
+  padding: 15px;
+  border-radius: 8px;
+  margin: 15px 0;
+  border-left: none;
+}
+
+/* Labels */
+label {
+  display: block;
+  margin: 10px 0 5px;
+  color: #a0a0a0;
+}
+
+/* Inputs */
+input[type='number'] {
+  width: 80px;
+  padding: 10px;
+  font-size: 1.2em;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: #0f0f23;
+  color: #fff;
+  text-align: center;
+}
+
+/* Time Input */
+.time-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+}
+
+.time-input span {
+  font-size: 1.5em;
+  color: #888;
+}
+
+/* Buttons */
+.button {
+  display: inline-block;
+  padding: 12px 24px;
+  margin: 5px;
+  border: none;
+  border-radius: 6px;
+  font-size: 1em;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.button.primary {
+  background: #4361ee;
+  color: white;
+}
+
+.button.primary:hover {
+  background: #3651d4;
+}
+
+.button.toggle {
+  background: #f72585;
+  color: white;
+}
+
+.button.toggle:hover {
+  background: #d91e71;
+}
+
+.button.back {
+  background: #444;
+  color: white;
+}
+
+.button.back:hover {
+  background: #555;
+}
+
+.button.warning {
+  background: #f59e0b;
+  color: white;
+}
+
+.button.warning:hover {
+  background: #d97706;
+}
+
+.button.danger {
+  background: #dc2626;
+  color: white;
+}
+
+.button.danger:hover {
+  background: #b91c1c;
+}
+
+.buttons {
+  text-align: center;
+  margin-top: 20px;
+}
+
+/* Info Display */
+.info {
+  margin-top: 15px;
+  padding: 10px;
+  background: #0f0f23;
+  border-radius: 4px;
+  text-align: center;
+  border-left: none;
+}
+
+.info .label {
+  color: #888;
+  font-size: 0.9em;
+  font-weight: normal;
+}
+
+.info .value {
+  font-size: 1.3em;
+  font-family: monospace;
+  color: #fff;
+}
+
+/* Rebooting message */
+.reboot-message {
+  text-align: center;
+  padding: 50px;
+  color: #fff;
+}
+
+.reboot-message h2 {
+  color: #ff6b6b;
+}

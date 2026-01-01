@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>qlockthree LED Configuration</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+  <div class="container">
+    <h1>LED Configuration</h1>
+
+    <!-- Brightness Control -->
+    <div class="control-group">
+      <h3>Brightness Control</h3>
+      <label for="brightness">Brightness: <span id="brightness-value">128</span></label>
+      <input type="range" id="brightness" class="slider" min="0" max="255" value="128" oninput="updateBrightness(this.value)">
+    </div>
+
+    <!-- Color Configuration -->
+    <div class="control-group">
+      <h3>Color Configuration</h3>
+      <p><strong>Instructions:</strong> Select a color below, then click 'Show Selected Color' to see it on your clock. The main loop shows time in clock mode, so you need to switch to solid color mode to test colors.</p>
+
+      <label for="clock-color">Clock Display Color:</label>
+      <input type="color" id="clock-color" class="color-input" value="#ffffff" onchange="updateClockColor(this.value)">
+      <span id="clock-color-preview" class="color-preview" style="background-color:#ffffff;"></span>
+
+      <label>Preset Colors:</label>
+      <div class="preset-colors">
+        <div class="preset-color" style="background-color:#ffffff" onclick="setPresetColor('#ffffff')" title="White"></div>
+        <div class="preset-color" style="background-color:#ff0000" onclick="setPresetColor('#ff0000')" title="Red"></div>
+        <div class="preset-color" style="background-color:#00ff00" onclick="setPresetColor('#00ff00')" title="Green"></div>
+        <div class="preset-color" style="background-color:#0000ff" onclick="setPresetColor('#0000ff')" title="Blue"></div>
+        <div class="preset-color" style="background-color:#ffff00" onclick="setPresetColor('#ffff00')" title="Yellow"></div>
+        <div class="preset-color" style="background-color:#ff00ff" onclick="setPresetColor('#ff00ff')" title="Magenta"></div>
+        <div class="preset-color" style="background-color:#00ffff" onclick="setPresetColor('#00ffff')" title="Cyan"></div>
+        <div class="preset-color" style="background-color:#ffa500" onclick="setPresetColor('#ffa500')" title="Orange"></div>
+      </div>
+    </div>
+
+    <!-- Animation Speed -->
+    <div class="control-group">
+      <h3>Animation Speed</h3>
+      <label for="speed">Speed: <span id="speed-value">128</span></label>
+      <input type="range" id="speed" class="slider" min="0" max="255" value="128" oninput="updateSpeed(this.value)">
+    </div>
+
+    <!-- LED Information -->
+    <div class="control-group">
+      <h3>LED Information</h3>
+      <p><strong>LED Count:</strong> <span id="num-leds">0</span> LEDs</p>
+      <p><strong>Data Pin:</strong> GPIO <span id="data-pin">0</span></p>
+      <p><small><em>Note: LED count is automatically set by the selected mapping. Use <a href="/led/mapping">LED Mapping</a> to change the layout.</em></small></p>
+    </div>
+
+    <!-- Pattern Tests -->
+    <div class="control-group">
+      <h3>Pattern Tests &amp; Control</h3>
+      <div class="grid">
+        <button onclick="testPattern('solid')" class="button pattern-btn">Show Selected Color</button>
+        <button onclick="testPattern('clock')" class="button test-btn">Clock Display</button>
+        <button onclick="testPattern('rainbow')" class="button test-btn">Rainbow</button>
+        <button onclick="testPattern('breathing')" class="button test-btn">Breathing</button>
+        <button onclick="testPattern('off')" class="button">Turn Off</button>
+      </div>
+      <div style="margin-top:15px;">
+        <button onclick="saveSettings()" class="button pattern-btn">Save Settings</button>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <a href="/" class="button back">Back to Status</a>
+      <a href="/led/status" class="button">JSON Status</a>
+      <a href="/led/mapping" class="button">LED Mapping</a>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/utils.js"></script>
+  <script>
+    async function loadCurrentSettings() {
+      try {
+        const data = await API.get('/led/status');
+
+        if (data.brightness !== undefined) {
+          document.getElementById('brightness').value = data.brightness;
+          setText('brightness-value', data.brightness);
+        }
+
+        if (data.speed !== undefined) {
+          document.getElementById('speed').value = data.speed;
+          setText('speed-value', data.speed);
+        }
+
+        if (data.num_leds !== undefined) {
+          setText('num-leds', data.num_leds);
+        }
+
+        if (data.data_pin !== undefined) {
+          setText('data-pin', data.data_pin);
+        }
+
+        if (data.color) {
+          const hex = rgbToHex(data.color.r, data.color.g, data.color.b);
+          document.getElementById('clock-color').value = hex;
+          document.getElementById('clock-color-preview').style.backgroundColor = hex;
+        }
+      } catch (err) {
+        console.error('Failed to load settings:', err);
+      }
+    }
+
+    function updateBrightness(val) {
+      setText('brightness-value', val);
+      sendConfig('brightness', val);
+    }
+
+    function updateSpeed(val) {
+      setText('speed-value', val);
+      sendConfig('speed', val);
+    }
+
+    function updateClockColor(color) {
+      document.getElementById('clock-color-preview').style.backgroundColor = color;
+      const rgb = hexToRgb(color);
+      sendColorConfig(rgb.r, rgb.g, rgb.b);
+    }
+
+    function setPresetColor(color) {
+      document.getElementById('clock-color').value = color;
+      updateClockColor(color);
+    }
+
+    async function testPattern(pattern) {
+      await API.post('/led/test', { pattern });
+    }
+
+    async function sendConfig(param, value) {
+      await API.post('/led/config', { [param]: value });
+    }
+
+    async function sendColorConfig(r, g, b) {
+      await API.post('/led/config', { color_r: r, color_g: g, color_b: b });
+    }
+
+    async function saveSettings() {
+      await API.post('/led/config', { save: '1' });
+      alert('Settings saved successfully!');
+    }
+
+    // Load settings on page load
+    loadCurrentSettings();
+  </script>
+</body>
+</html>

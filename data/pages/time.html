@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>qlockthree Time Configuration</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Time Configuration</h1>
+
+    <!-- Current Time Display -->
+    <div class="control-group">
+      <h3>Current Time</h3>
+      <div class="info">
+        <strong>Time:</strong> <span id="current-time">Loading...</span>
+      </div>
+      <div class="info">
+        <strong>Date:</strong> <span id="current-date">Loading...</span>
+      </div>
+      <div class="info">
+        <strong>Sync Status:</strong> <span id="sync-status">Loading...</span>
+      </div>
+      <button onclick="syncTime()" class="button success">Sync Now</button>
+    </div>
+
+    <!-- Timezone Configuration -->
+    <div class="control-group">
+      <h3>Timezone</h3>
+      <label for="timezone">Select Timezone:</label>
+      <select id="timezone">
+        <option value="CET-1CEST,M3.5.0,M10.5.0/3">Europe/Berlin (CET/CEST)</option>
+        <option value="GMT0BST,M3.5.0/1,M10.5.0">Europe/London (GMT/BST)</option>
+        <option value="EST5EDT,M3.2.0,M11.1.0">America/New_York (EST/EDT)</option>
+        <option value="CST6CDT,M3.2.0,M11.1.0">America/Chicago (CST/CDT)</option>
+        <option value="MST7MDT,M3.2.0,M11.1.0">America/Denver (MST/MDT)</option>
+        <option value="PST8PDT,M3.2.0,M11.1.0">America/Los_Angeles (PST/PDT)</option>
+        <option value="JST-9">Asia/Tokyo (JST)</option>
+        <option value="CST-8">Asia/Shanghai (CST)</option>
+        <option value="AEST-10AEDT,M10.1.0,M4.1.0/3">Australia/Sydney (AEST/AEDT)</option>
+        <option value="UTC0">UTC</option>
+      </select>
+      <button onclick="setTimezone()" class="button primary">Set Timezone</button>
+    </div>
+
+    <!-- NTP Server Configuration -->
+    <div class="control-group">
+      <h3>NTP Server</h3>
+      <div class="info">
+        <strong>Current NTP:</strong> <span id="ntp-server">Loading...</span>
+      </div>
+      <label for="ntp">NTP Server:</label>
+      <input type="text" id="ntp" placeholder="pool.ntp.org">
+      <button onclick="setNTP()" class="button primary">Set NTP Server</button>
+    </div>
+
+    <div class="buttons">
+      <a href="/" class="button back">Back to Status</a>
+      <a href="/time/status" class="button">JSON Status</a>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/utils.js"></script>
+  <script>
+    async function loadTimeStatus() {
+      try {
+        const data = await API.get('/time/status');
+
+        setText('current-time', formatTime(data.hour, data.minute) + ':' + padZero(data.second));
+        setText('current-date', data.day + '/' + data.month + '/' + data.year);
+        setText('sync-status', data.synced ? 'Synchronized' : 'Not synchronized');
+        setText('ntp-server', data.ntp_server || 'pool.ntp.org');
+
+        // Set current timezone in dropdown if it matches
+        const tzSelect = document.getElementById('timezone');
+        if (data.timezone) {
+          for (let opt of tzSelect.options) {
+            if (opt.value === data.timezone) {
+              opt.selected = true;
+              break;
+            }
+          }
+        }
+
+        // Pre-fill NTP input
+        document.getElementById('ntp').value = data.ntp_server || '';
+      } catch (err) {
+        console.error('Error loading time status:', err);
+      }
+    }
+
+    async function syncTime() {
+      try {
+        const result = await API.post('/time/sync');
+        alert(result);
+        loadTimeStatus();
+      } catch (err) {
+        alert('Error syncing time: ' + err.message);
+      }
+    }
+
+    async function setTimezone() {
+      const timezone = document.getElementById('timezone').value;
+      try {
+        const result = await API.post('/time/timezone', { timezone });
+        alert(result);
+        loadTimeStatus();
+      } catch (err) {
+        alert('Error setting timezone: ' + err.message);
+      }
+    }
+
+    async function setNTP() {
+      const ntp = document.getElementById('ntp').value;
+      if (!ntp) {
+        alert('Please enter an NTP server');
+        return;
+      }
+      try {
+        const result = await API.post('/time/ntp', { server: ntp });
+        alert(result);
+        loadTimeStatus();
+      } catch (err) {
+        alert('Error setting NTP server: ' + err.message);
+      }
+    }
+
+    // Load status on page load and refresh every second
+    loadTimeStatus();
+    setInterval(loadTimeStatus, 1000);
+  </script>
+</body>
+</html>

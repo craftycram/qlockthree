@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>qlockthree Status</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+  <div class="container">
+    <h1>qlockthree Status</h1>
+
+    <div id="status-info">
+      <div class="info"><strong>Loading...</strong></div>
+    </div>
+
+    <div id="update-info" class="info">
+      <strong>Checking for updates...</strong>
+    </div>
+
+    <div class="warning">
+      <strong>WiFi Configuration:</strong> To reconfigure WiFi settings, click the 'Reset WiFi' button below.
+      The device will restart and create a 'qlockthree-Setup' access point for configuration.
+    </div>
+
+    <div class="buttons">
+      <a href="/status" class="button">JSON Status</a>
+      <a href="/led" class="button">LED Config</a>
+      <a href="/time" class="button">Time Config</a>
+      <a href="/birthdays" class="button">Birthdays</a>
+      <button onclick="location.reload()" class="button">Refresh</button>
+      <button onclick="checkUpdate()" class="button check-btn">Check Updates</button>
+      <button id="update-btn" onclick="performUpdate()" class="button update-btn" style="display:none">Install Update</button>
+      <button onclick="resetWiFi()" class="button danger-btn">Reset WiFi</button>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/utils.js"></script>
+  <script>
+    async function loadStatus() {
+      try {
+        const data = await API.get('/status');
+
+        let html = '';
+        html += '<div class="info"><strong>Hostname:</strong> ' + data.hostname + '</div>';
+        html += '<div class="info"><strong>IP Address:</strong> ' + data.ip + '</div>';
+        html += '<div class="info"><strong>WiFi Network:</strong> ' + data.ssid + '</div>';
+        html += '<div class="info"><strong>WiFi RSSI:</strong> ' + data.rssi + ' dBm</div>';
+        html += '<div class="info"><strong>Uptime:</strong> ' + formatUptime(data.uptime) + '</div>';
+        html += '<div class="info"><strong>Free Heap:</strong> ' + data.free_heap + ' bytes</div>';
+        html += '<div class="info"><strong>Chip Model:</strong> ' + data.chip_model + '</div>';
+        html += '<div class="info"><strong>SDK Version:</strong> ' + data.sdk_version + '</div>';
+        html += '<div class="info"><strong>Current Version:</strong> ' + data.current_version + '</div>';
+        html += '<div class="info"><strong>Latest Version:</strong> ' + (data.latest_version || 'Checking...') + '</div>';
+
+        setHTML('status-info', html);
+
+        // Update status display
+        const updateDiv = document.getElementById('update-info');
+        if (data.update_available) {
+          updateDiv.className = 'update';
+          updateDiv.innerHTML = '<strong>Update Available!</strong> Version ' + data.latest_version + ' is ready for installation.';
+          setVisible('update-btn', true);
+        } else {
+          updateDiv.className = 'info';
+          updateDiv.innerHTML = '<strong>Up to Date</strong> - You are running the latest version.';
+          setVisible('update-btn', false);
+        }
+      } catch (err) {
+        setHTML('status-info', '<div class="error"><strong>Error loading status:</strong> ' + err.message + '</div>');
+      }
+    }
+
+    async function checkUpdate() {
+      try {
+        const data = await API.get('/check-update');
+        loadStatus();
+      } catch (err) {
+        alert('Error checking for updates: ' + err.message);
+      }
+    }
+
+    async function performUpdate() {
+      if (confirm('Are you sure you want to update the firmware? The device will restart.')) {
+        await API.post('/update');
+        alert('Update started. Device will restart when complete.');
+      }
+    }
+
+    async function resetWiFi() {
+      if (confirm('Are you sure you want to reset WiFi settings? The device will restart and enter configuration mode.')) {
+        await API.post('/wifi-reset');
+        alert('WiFi settings reset. Device will restart.');
+      }
+    }
+
+    // Load status on page load
+    loadStatus();
+  </script>
+</body>
+</html>
