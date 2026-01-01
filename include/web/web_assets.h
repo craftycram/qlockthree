@@ -28,6 +28,8 @@ extern const uint8_t dev_html_start[] asm("_binary_data_pages_dev_html_start");
 extern const uint8_t dev_html_end[] asm("_binary_data_pages_dev_html_end");
 extern const uint8_t birthdays_html_start[] asm("_binary_data_pages_birthdays_html_start");
 extern const uint8_t birthdays_html_end[] asm("_binary_data_pages_birthdays_html_end");
+extern const uint8_t cloud_html_start[] asm("_binary_data_pages_cloud_html_start");
+extern const uint8_t cloud_html_end[] asm("_binary_data_pages_cloud_html_end");
 
 // Helper macro to calculate asset size (subtract 1 for null terminator added by embed_txtfiles)
 #define ASSET_SIZE(name) ((size_t)(name##_end - name##_start - 1))

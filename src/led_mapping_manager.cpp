@@ -169,13 +169,13 @@ void LEDMappingManager::setCustomMapping(const char* mappingId) {
 }
 
 void LEDMappingManager::calculateTimeDisplay(uint8_t hour, uint8_t minute, bool* ledStates) {
-    Serial.printf("MAPPING DEBUG: calculateTimeDisplay called with hour=%d, minute=%d\n", hour, minute);
+    // Serial.printf("MAPPING DEBUG: calculateTimeDisplay called with hour=%d, minute=%d\n", hour, minute);
     
     // Debug: Check what's missing
-    Serial.printf("MAPPING DEBUG: ledStates=%p, shouldShowBaseWords=%p, getHourWordIndex=%p, getMinuteWordIndex=%p\n", 
-                 ledStates, shouldShowBaseWords, getHourWordIndex, getMinuteWordIndex);
-    Serial.printf("MAPPING DEBUG: connectorWords=%p, baseWords=%p, hourWords=%p, minuteWords=%p\n",
-                 connectorWords, baseWords, hourWords, minuteWords);
+    //Serial.printf("MAPPING DEBUG: ledStates=%p, shouldShowBaseWords=%p, getHourWordIndex=%p, getMinuteWordIndex=%p\n", 
+    //             ledStates, shouldShowBaseWords, getHourWordIndex, getMinuteWordIndex);
+    //Serial.printf("MAPPING DEBUG: connectorWords=%p, baseWords=%p, hourWords=%p, minuteWords=%p\n",
+    //             connectorWords, baseWords, hourWords, minuteWords);
     
     if (!ledStates || !shouldShowBaseWords || !getHourWordIndex || !getMinuteWordIndex) {
         Serial.println("MAPPING ERROR: Missing function pointers or ledStates array");
@@ -188,24 +188,24 @@ void LEDMappingManager::calculateTimeDisplay(uint8_t hour, uint8_t minute, bool*
     
     // Clear all LEDs first
     clearAllLEDs(ledStates);
-    Serial.println("MAPPING DEBUG: LED states cleared");
+    // Serial.println("MAPPING DEBUG: LED states cleared");
     
     // Always show base words ("ES IST")
     if (shouldShowBaseWords()) {
-        Serial.printf("MAPPING DEBUG: Showing base words (count: %d)\n", baseWordsCount);
+        // Serial.printf("MAPPING DEBUG: Showing base words (count: %d)\n", baseWordsCount);
         for (uint8_t i = 0; i < baseWordsCount; i++) {
-            Serial.printf("MAPPING DEBUG: Base word %d: '%s' at LED %d, length %d\n", 
-                         i, baseWords[i].word, baseWords[i].start_led, baseWords[i].length);
+            // Serial.printf("MAPPING DEBUG: Base word %d: '%s' at LED %d, length %d\n", 
+            //              i, baseWords[i].word, baseWords[i].start_led, baseWords[i].length);
             illuminateWord(ledStates, baseWords[i]);
         }
     }
     
     // Show hour word
     uint8_t hourIndex = getHourWordIndex(hour, minute);
-    Serial.printf("MAPPING DEBUG: Hour index calculated as %d (max: %d)\n", hourIndex, hourWordsCount);
+    // Serial.printf("MAPPING DEBUG: Hour index calculated as %d (max: %d)\n", hourIndex, hourWordsCount);
     if (hourIndex < hourWordsCount) {
-        Serial.printf("MAPPING DEBUG: Hour word: '%s' at LED %d, length %d\n", 
-                     hourWords[hourIndex].word, hourWords[hourIndex].start_led, hourWords[hourIndex].length);
+        // Serial.printf("MAPPING DEBUG: Hour word: '%s' at LED %d, length %d\n", 
+        //              hourWords[hourIndex].word, hourWords[hourIndex].start_led, hourWords[hourIndex].length);
         illuminateWord(ledStates, hourWords[hourIndex]);
     }
     
@@ -213,34 +213,34 @@ void LEDMappingManager::calculateTimeDisplay(uint8_t hour, uint8_t minute, bool*
     if (getMinutePrefixWordIndex) {
         int8_t prefixIndex = getMinutePrefixWordIndex(minute);
         if (prefixIndex >= 0 && prefixIndex < minuteWordsCount) {
-            Serial.printf("MAPPING DEBUG: Minute prefix word: '%s' at LED %d, length %d\n",
-                         minuteWords[prefixIndex].word, minuteWords[prefixIndex].start_led, minuteWords[prefixIndex].length);
+            // Serial.printf("MAPPING DEBUG: Minute prefix word: '%s' at LED %d, length %d\n",
+            //              minuteWords[prefixIndex].word, minuteWords[prefixIndex].start_led, minuteWords[prefixIndex].length);
             illuminateWord(ledStates, minuteWords[prefixIndex]);
         }
     }
 
     // Show minute word
     int8_t minuteIndex = getMinuteWordIndex(minute);
-    Serial.printf("MAPPING DEBUG: Minute index calculated as %d (max: %d)\n", minuteIndex, minuteWordsCount);
+    // Serial.printf("MAPPING DEBUG: Minute index calculated as %d (max: %d)\n", minuteIndex, minuteWordsCount);
     if (minuteIndex >= 0 && minuteIndex < minuteWordsCount) {
-        Serial.printf("MAPPING DEBUG: Minute word: '%s' at LED %d, length %d\n",
-                     minuteWords[minuteIndex].word, minuteWords[minuteIndex].start_led, minuteWords[minuteIndex].length);
+        // Serial.printf("MAPPING DEBUG: Minute word: '%s' at LED %d, length %d\n",
+        //              minuteWords[minuteIndex].word, minuteWords[minuteIndex].start_led, minuteWords[minuteIndex].length);
         illuminateWord(ledStates, minuteWords[minuteIndex]);
     }
     
     // Show connector word
     int8_t connectorIndex = getConnectorWordIndex(minute);
-    Serial.printf("MAPPING DEBUG: Connector index calculated as %d (max: %d)\n", connectorIndex, connectorWordsCount);
+    // Serial.printf("MAPPING DEBUG: Connector index calculated as %d (max: %d)\n", connectorIndex, connectorWordsCount);
     if (connectorIndex >= 0 && connectorIndex < connectorWordsCount) {
-        Serial.printf("MAPPING DEBUG: Connector word: '%s' at LED %d, length %d\n", 
-                     connectorWords[connectorIndex].word, connectorWords[connectorIndex].start_led, connectorWords[connectorIndex].length);
+        // Serial.printf("MAPPING DEBUG: Connector word: '%s' at LED %d, length %d\n", 
+        //              connectorWords[connectorIndex].word, connectorWords[connectorIndex].start_led, connectorWords[connectorIndex].length);
         illuminateWord(ledStates, connectorWords[connectorIndex]);
     }
     
     // Show minute dots (for precise minutes 1-4)
     if (getMinuteDots) {
         uint8_t dots = getMinuteDots(minute);
-        Serial.printf("MAPPING DEBUG: Minute dots: %d\n", dots);
+        // Serial.printf("MAPPING DEBUG: Minute dots: %d\n", dots);
         illuminateMinuteDots(ledStates, dots);
     }
 }

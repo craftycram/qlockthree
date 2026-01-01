@@ -37,4 +37,7 @@
 // Web Server Configuration
 #define WEB_SERVER_PORT 80           // HTTP port for web interface
 
+// Cloud Configuration
+#define CLOUD_API_URL "https://qlockthree.l4b.dev"
+
 #endif // CONFIG_H

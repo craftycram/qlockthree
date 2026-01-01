@@ -10,6 +10,7 @@ class AutoUpdater;
 class LEDController;
 class TimeManager;
 class BirthdayManager;
+class CloudManager;
 
 class WebServerManager {
 public:
@@ -18,6 +19,7 @@ public:
                bool* debugModeEnabled = nullptr, int* debugHour = nullptr, int* debugMinute = nullptr);
     void handleClient();
     void setBirthdayManager(BirthdayManager* manager) { birthdayManager = manager; }
+    void setCloudManager(CloudManager* manager) { cloudManager = manager; }
 
 private:
     WebServer server;
@@ -26,6 +28,7 @@ private:
     LEDController* ledController;
     TimeManager* timeManager;
     BirthdayManager* birthdayManager;
+    CloudManager* cloudManager;
 
     // Debug mode state pointers
     bool* debugModeEnabled;
@@ -71,6 +74,13 @@ private:
     void handleBirthdayAdd();
     void handleBirthdayRemove();
     void handleBirthdayMode();
+
+    // Cloud handlers
+    void handleCloudPage();
+    void handleCloudStatus();
+    void handleCloudPairStart();
+    void handleCloudPairStop();
+    void handleCloudDisconnect();
 
     // JSON generators
     String getStatusJSON();

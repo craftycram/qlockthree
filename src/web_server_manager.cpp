@@ -4,12 +4,13 @@
 #include "led_controller.h"
 #include "time_manager.h"
 #include "birthday_manager.h"
+#include "cloud_manager.h"
 #include "config.h"
 #include "web/web_assets.h"
 #include <WiFi.h>
 
 WebServerManager::WebServerManager(int port) : server(port), wifiManagerHelper(nullptr), autoUpdater(nullptr), ledController(nullptr), timeManager(nullptr),
-    birthdayManager(nullptr), debugModeEnabled(nullptr), debugHour(nullptr), debugMinute(nullptr) {
+    birthdayManager(nullptr), cloudManager(nullptr), debugModeEnabled(nullptr), debugHour(nullptr), debugMinute(nullptr) {
 }
 
 void WebServerManager::begin(WiFiManagerHelper* wifiHelper, AutoUpdater* updater, LEDController* ledCtrl, TimeManager* timeMgr,
@@ -156,6 +157,13 @@ void WebServerManager::setupRoutes() {
     server.on("/birthdays/add", HTTP_POST, [this]() { handleBirthdayAdd(); });
     server.on("/birthdays/remove", HTTP_POST, [this]() { handleBirthdayRemove(); });
     server.on("/birthdays/mode", HTTP_POST, [this]() { handleBirthdayMode(); });
+
+    // Cloud endpoints
+    server.on("/cloud", [this]() { handleCloudPage(); });
+    server.on("/cloud/status", [this]() { handleCloudStatus(); });
+    server.on("/cloud/pair/start", HTTP_POST, [this]() { handleCloudPairStart(); });
+    server.on("/cloud/pair/stop", HTTP_POST, [this]() { handleCloudPairStop(); });
+    server.on("/cloud/disconnect", HTTP_POST, [this]() { handleCloudDisconnect(); });
 }
 
 void WebServerManager::handleRoot() {
@@ -622,4 +630,57 @@ void WebServerManager::handleBirthdayMode() {
     } else {
         server.send(400, "text/plain", "Missing mode parameter");
     }
+}
+
+// Cloud handlers
+void WebServerManager::handleCloudPage() {
+    server.send_P(200, "text/html", (const char*)cloud_html_start, ASSET_SIZE(cloud_html));
+}
+
+void WebServerManager::handleCloudStatus() {
+    if (!cloudManager) {
+        server.send(500, "application/json", "{\"error\":\"Cloud manager not available\"}");
+        return;
+    }
+    server.send(200, "application/json", cloudManager->getStatusJSON());
+}
+
+void WebServerManager::handleCloudPairStart() {
+    if (!cloudManager) {
+        server.send(500, "application/json", "{\"success\":false,\"error\":\"Cloud manager not available\"}");
+        return;
+    }
+
+    if (cloudManager->startPairing(CLOUD_API_URL)) {
+        String response = "{\"success\":true,\"code\":\"" + cloudManager->getPairingCode() + "\"}";
+        server.send(200, "application/json", response);
+    } else {
+        server.send(500, "application/json", "{\"success\":false,\"error\":\"Failed to start pairing\"}");
+    }
+}
+
+void WebServerManager::handleCloudPairStop() {
+    if (!cloudManager) {
+        server.send(500, "application/json", "{\"success\":false,\"error\":\"Cloud manager not available\"}");
+        return;
+    }
+
+    cloudManager->stopPairing();
+    server.send(200, "application/json", "{\"success\":true}");
+}
+
+void WebServerManager::handleCloudDisconnect() {
+    if (!cloudManager) {
+        server.send(500, "application/json", "{\"success\":false,\"error\":\"Cloud manager not available\"}");
+        return;
+    }
+
+    cloudManager->disconnect();
+
+    // Clear cloud settings
+    CloudConfig config;
+    config.begin();
+    config.clear();
+
+    server.send(200, "application/json", "{\"success\":true}");
 }

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>qlockthree Cloud</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/common.css">
+  <style>
+    .pairing-code {
+      font-size: 2.5rem;
+      font-family: monospace;
+      letter-spacing: 0.5rem;
+      text-align: center;
+      padding: 20px;
+      background: #333;
+      border-radius: 8px;
+      margin: 15px 0;
+      color: #fff;
+    }
+    .pairing-timer {
+      text-align: center;
+      color: #888;
+      margin-bottom: 15px;
+    }
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .status-dot.connected { background: #4caf50; }
+    .status-dot.disconnected { background: #f44336; }
+    .status-dot.pairing { background: #ff9800; animation: pulse 1s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .device-id {
+      font-family: monospace;
+      background: #222;
+      padding: 8px 12px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Cloud Connection</h1>
+
+    <div class="info">
+      <strong>Device ID:</strong>
+      <div class="device-id" id="device-id">Loading...</div>
+    </div>
+
+    <div class="info">
+      <strong>Status:</strong>
+      <div class="status-indicator">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Loading...</span>
+      </div>
+    </div>
+
+    <!-- Pairing Section -->
+    <div id="pairing-section">
+      <div id="pairing-setup">
+        <div class="info">
+          Link your clock to your account for Alexa control.
+        </div>
+        <div class="buttons">
+          <button class="button" id="start-pairing">Start Pairing</button>
+        </div>
+      </div>
+
+      <div id="pairing-active" style="display: none;">
+        <div class="info">
+          Enter this code in your QlockThree web app:
+        </div>
+        <div class="pairing-code" id="pairing-code">------</div>
+        <div class="pairing-timer">
+          Time remaining: <span id="pairing-timer">10:00</span>
+        </div>
+        <div class="buttons">
+          <button class="button danger-btn" id="cancel-pairing">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connected Section -->
+    <div id="connected-section" style="display: none;">
+      <div class="info success">
+        <strong>Connected!</strong> Your clock is linked and can be controlled via Alexa.
+      </div>
+      <div class="buttons">
+        <button class="button danger-btn" id="disconnect-cloud">Disconnect</button>
+      </div>
+    </div>
+
+    <div class="buttons" style="margin-top: 20px;">
+      <a href="/" class="button">Back to Status</a>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    let pollInterval = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadStatus();
+      document.getElementById('start-pairing').addEventListener('click', startPairing);
+      document.getElementById('cancel-pairing').addEventListener('click', cancelPairing);
+      document.getElementById('disconnect-cloud').addEventListener('click', disconnectCloud);
+    });
+
+    async function loadStatus() {
+      try {
+        const status = await API.get('/cloud/status');
+        updateUI(status);
+      } catch (error) {
+        console.error('Failed to load status:', error);
+        document.getElementById('status-text').textContent = 'Error loading status';
+      }
+    }
+
+    function updateUI(status) {
+      document.getElementById('device-id').textContent = status.deviceId;
+
+      const statusDot = document.getElementById('status-dot');
+      const statusText = document.getElementById('status-text');
+      const pairingSection = document.getElementById('pairing-section');
+      const connectedSection = document.getElementById('connected-section');
+
+      if (status.pairingActive) {
+        statusDot.className = 'status-dot pairing';
+        statusText.textContent = 'Pairing...';
+        showPairingActive(status.pairingCode, status.pairingTimeRemaining);
+        pairingSection.style.display = 'block';
+        connectedSection.style.display = 'none';
+      } else if (status.connected) {
+        statusDot.className = 'status-dot connected';
+        statusText.textContent = 'Connected';
+        pairingSection.style.display = 'none';
+        connectedSection.style.display = 'block';
+        stopPolling();
+      } else if (status.paired) {
+        statusDot.className = 'status-dot disconnected';
+        statusText.textContent = 'Paired (offline)';
+        pairingSection.style.display = 'none';
+        connectedSection.style.display = 'block';
+        stopPolling();
+      } else {
+        statusDot.className = 'status-dot disconnected';
+        statusText.textContent = 'Not connected';
+        showPairingSetup();
+        pairingSection.style.display = 'block';
+        connectedSection.style.display = 'none';
+      }
+    }
+
+    function showPairingSetup() {
+      document.getElementById('pairing-setup').style.display = 'block';
+      document.getElementById('pairing-active').style.display = 'none';
+      stopPolling();
+    }
+
+    function showPairingActive(code, timeRemaining) {
+      document.getElementById('pairing-setup').style.display = 'none';
+      document.getElementById('pairing-active').style.display = 'block';
+      document.getElementById('pairing-code').textContent = code;
+      updateTimer(timeRemaining);
+      startPolling();
+    }
+
+    function updateTimer(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      document.getElementById('pairing-timer').textContent =
+        mins + ':' + secs.toString().padStart(2, '0');
+    }
+
+    async function startPairing() {
+      try {
+        const result = await API.postJSON('/cloud/pair/start');
+        if (result.success) {
+          loadStatus();
+        } else {
+          alert('Failed to start pairing: ' + (result.error || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Failed to start pairing: ' + error.message);
+      }
+    }
+
+    async function cancelPairing() {
+      try {
+        await API.postJSON('/cloud/pair/stop');
+        loadStatus();
+      } catch (error) {
+        console.error('Failed to cancel pairing:', error);
+      }
+    }
+
+    async function disconnectCloud() {
+      if (!confirm('Are you sure you want to disconnect from the cloud?')) return;
+
+      try {
+        await API.postJSON('/cloud/disconnect');
+        loadStatus();
+      } catch (error) {
+        alert('Failed to disconnect: ' + error.message);
+      }
+    }
+
+    function startPolling() {
+      if (pollInterval) return;
+      pollInterval = setInterval(loadStatus, 3000);
+    }
+
+    function stopPolling() {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    }
+  </script>
+</body>
+</html>

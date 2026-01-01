@@ -250,7 +250,7 @@ void LEDController::showTime(int hours, int minutes) {
 }
 
 void LEDController::showTime(int hours, int minutes, int weekday) {
-    Serial.printf("DEBUG: showTime called - %02d:%02d, weekday %d\n", hours, minutes, weekday);
+    // Serial.printf("DEBUG: showTime called - %02d:%02d, weekday %d\n", hours, minutes, weekday);
 
     setPattern(LEDPattern::CLOCK_DISPLAY);
 
@@ -264,7 +264,7 @@ void LEDController::showTime(int hours, int minutes, int weekday) {
             activeLEDs++;
         }
     }
-    Serial.printf("DEBUG: Time calculation resulted in %d active LEDs out of %d\n", activeLEDs, numLeds);
+    // Serial.printf("DEBUG: Time calculation resulted in %d active LEDs out of %d\n", activeLEDs, numLeds);
 
     // Debug: If all LEDs are active, something is wrong
     if (activeLEDs == numLeds) {
@@ -284,7 +284,7 @@ void LEDController::showTime(int hours, int minutes, int weekday) {
         }
     }
 
-    Serial.printf("DEBUG: Applied time display pattern, showing %d lit LEDs\n", activeLEDs);
+    // Serial.printf("DEBUG: Applied time display pattern, showing %d lit LEDs\n", activeLEDs);
     FastLED.show();
 }
 

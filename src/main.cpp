@@ -8,6 +8,8 @@
 #include "led_controller.h"
 #include "time_manager.h"
 #include "birthday_manager.h"
+#include "cloud_manager.h"
+#include "device_identity.h"
 
 // Create module instances
 WiFiManagerHelper wifiManager;
@@ -17,6 +19,7 @@ WebServerManager webServer(WEB_SERVER_PORT);
 LEDController ledController;
 TimeManager timeManager;
 BirthdayManager birthdayManager;
+CloudManager cloudManager;
 
 // Debug mode state (resets on reboot)
 bool debugModeEnabled = false;
@@ -104,10 +107,65 @@ void setup() {
         birthdayManager.begin();
         ledController.setBirthdayManager(&birthdayManager);
 
+        // Initialize Cloud Manager
+        cloudManager.begin(&ledController);
+
+        // Register cloud command callback
+        cloudManager.setCommandCallback([](CloudCommandType type, JsonObject& payload) {
+            Serial.printf("Cloud command received: type=%d\n", static_cast<int>(type));
+
+            switch (type) {
+                case CloudCommandType::POWER: {
+                    String state = payload["state"].as<String>();
+                    Serial.printf("Power command: %s\n", state.c_str());
+                    if (state == "ON") {
+                        ledController.setPattern(LEDPattern::CLOCK_DISPLAY);
+                    } else {
+                        ledController.setPattern(LEDPattern::OFF);
+                    }
+                    break;
+                }
+                case CloudCommandType::BRIGHTNESS: {
+                    int value = payload["value"].as<int>();
+                    Serial.printf("Brightness command: %d\n", value);
+                    ledController.setBrightness(static_cast<uint8_t>(value));
+                    break;
+                }
+                case CloudCommandType::COLOR: {
+                    int r = payload["r"].as<int>();
+                    int g = payload["g"].as<int>();
+                    int b = payload["b"].as<int>();
+                    Serial.printf("Color command: R=%d G=%d B=%d\n", r, g, b);
+                    ledController.setSolidColor(CRGB(r, g, b));
+                    break;
+                }
+                case CloudCommandType::PATTERN: {
+                    String pattern = payload["pattern"].as<String>();
+                    Serial.printf("Pattern command: %s\n", pattern.c_str());
+                    if (pattern == "OFF") {
+                        ledController.setPattern(LEDPattern::OFF);
+                    } else if (pattern == "CLOCK_DISPLAY") {
+                        ledController.setPattern(LEDPattern::CLOCK_DISPLAY);
+                    } else if (pattern == "RAINBOW") {
+                        ledController.setPattern(LEDPattern::RAINBOW);
+                    } else if (pattern == "BREATHING") {
+                        ledController.setPattern(LEDPattern::BREATHING);
+                    } else if (pattern == "SOLID_COLOR") {
+                        ledController.setPattern(LEDPattern::SOLID_COLOR);
+                    }
+                    break;
+                }
+                default:
+                    Serial.println("Unknown cloud command type");
+                    break;
+            }
+        });
+
         // Initialize Web Server with TimeManager and debug state
         webServer.begin(&wifiManager, &autoUpdater, &ledController, &timeManager,
                         &debugModeEnabled, &debugHour, &debugMinute);
         webServer.setBirthdayManager(&birthdayManager);
+        webServer.setCloudManager(&cloudManager);
         
         // Initial update check (show update mode during check)
         if (autoUpdater.isUpdateAvailable()) {
@@ -124,6 +182,8 @@ void setup() {
         Serial.println(WiFi.localIP());
         Serial.print("Hostname: ");
         Serial.println(OTA_HOSTNAME);
+        Serial.print("Device ID: ");
+        Serial.println(DeviceIdentity::getDeviceId());
         Serial.print("Current Version: ");
         Serial.println(CURRENT_VERSION);
     } else {
@@ -193,6 +253,7 @@ void loop() {
     // Handle all services
     otaManager.handle();
     webServer.handleClient();
+    cloudManager.loop();
     
     // Check for updates ONLY AFTER time sync is complete
     static unsigned long lastUpdateCheck = 0;
