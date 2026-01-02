@@ -81,11 +81,12 @@ void setup() {
             Serial.println("Initial NTP sync failed - showing error indication");
             // Flash red 3 times to indicate initial sync failure
             ledController.setStatusLEDsEnabled(false);
+            int statusLED = ledController.getMappingManager()->getSystemStatusLED();
             for (int i = 0; i < 3; i++) {
-                ledController.setPixel(10, CRGB::Red);
+                ledController.setPixel(statusLED, CRGB::Red);
                 FastLED.show();
                 delay(400);
-                ledController.setPixel(10, CRGB::Black);
+                ledController.setPixel(statusLED, CRGB::Black);
                 FastLED.show();
                 delay(400);
             }
@@ -486,39 +487,42 @@ void loop() {
     // Handle non-blocking error flash sequence
     if (errorFlashInProgress) {
         unsigned long elapsed = millis() - errorFlashStart;
-        
+
         // Flash pattern: 400ms on, 400ms off, repeat 3 times = 2400ms total
         int currentCycle = elapsed / 800; // Each cycle is 800ms (400 on + 400 off)
         bool shouldBeOn = (elapsed % 800) < 400; // On for first 400ms of each cycle
-        
+
+        // Get rotated status LED position
+        int statusLED = ledController.getMappingManager()->getSystemStatusLED();
+
         // Debug output for first few cycles
         static unsigned long lastDebug = 0;
         if (millis() - lastDebug > 200) { // Debug every 200ms
             lastDebug = millis();
-            Serial.printf("Flash debug: elapsed=%lu, cycle=%d, shouldBeOn=%s\n", 
+            Serial.printf("Flash debug: elapsed=%lu, cycle=%d, shouldBeOn=%s\n",
                          elapsed, currentCycle, shouldBeOn ? "true" : "false");
         }
-        
+
         if (currentCycle < 3) { // 3 flashes total
             if (shouldBeOn) {
-                ledController.setPixelThreadSafe(10, CRGB::Red); // LED 10 at array index 10
+                ledController.setPixelThreadSafe(statusLED, CRGB::Red);
             } else {
-                ledController.setPixelThreadSafe(10, CRGB::Black);
+                ledController.setPixelThreadSafe(statusLED, CRGB::Black);
             }
             ledController.showThreadSafe();
-            
+
             // Debug: Log which LED is flashing
             static unsigned long lastFlashDebug = 0;
             if (millis() - lastFlashDebug > 800) { // Debug every flash cycle
                 lastFlashDebug = millis();
-                Serial.printf("ERROR FLASH: LED 10 (array index 10) flashing red, cycle %d/3\n", currentCycle + 1);
+                Serial.printf("ERROR FLASH: Status LED %d flashing red, cycle %d/3\n", statusLED, currentCycle + 1);
             }
         } else {
             // Flash sequence complete - re-enable status LED system
             Serial.printf("Error flash sequence complete after %lu ms\n", elapsed);
-            Serial.println("NTP error flash: 3 red flashes on LED 10 completed");
+            Serial.printf("NTP error flash: 3 red flashes on status LED %d completed\n", statusLED);
             errorFlashInProgress = false;
-            ledController.setPixelThreadSafe(10, CRGB::Black); // LED 10 at array index 10
+            ledController.setPixelThreadSafe(statusLED, CRGB::Black);
             ledController.showThreadSafe();
             ledController.setStatusLEDsEnabled(true);
             ledController.setTimeOTAStatusLED(4); // Back to orange breathing for retry
