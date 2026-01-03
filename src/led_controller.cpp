@@ -18,6 +18,7 @@ LEDController::LEDController() :
     wifiStatusState(0),
     timeOTAStatusState(0),
     updateStatusState(0),
+    cloudStatusState(0),
     statusLEDUpdate(0),
     statusLEDStep(0),
     ledTaskHandle(nullptr),
@@ -690,6 +691,13 @@ void LEDController::setUpdateStatusLED(uint8_t state) {
     }
 }
 
+void LEDController::setCloudStatusLED(uint8_t state) {
+    if (cloudStatusState != state) {
+        cloudStatusState = state;
+        Serial.printf("Cloud status LED changed to: %d\n", state);
+    }
+}
+
 void LEDController::setStatusLEDsEnabled(bool enabled) {
     statusLEDsEnabled = enabled;
 }
@@ -859,6 +867,52 @@ void LEDController::updateStatusLEDs() {
                 uint8_t brightness = beatsin8(30); // 30 BPM breathing
                 leds[statusLEDIndex] = CRGB::Orange;
                 leds[statusLEDIndex].fadeToBlackBy(255 - brightness);
+            }
+
+            // OTA/NTP status has priority over cloud status
+            if (timeOTAStatusState > 0) {
+                return;
+            }
+
+            // Handle cloud status when update and OTA/NTP status are not active
+            if (cloudStatusState == 1) {
+                // Breathing purple during cloud pairing/provisioning
+                uint8_t brightness = beatsin8(30); // 30 BPM breathing
+                leds[statusLEDIndex] = CRGB::Purple;
+                leds[statusLEDIndex].fadeToBlackBy(255 - brightness);
+            } else if (cloudStatusState == 2) {
+                // Breathing white during cloud connecting
+                uint8_t brightness = beatsin8(30); // 30 BPM breathing
+                leds[statusLEDIndex] = CRGB::White;
+                leds[statusLEDIndex].fadeToBlackBy(255 - brightness);
+            } else if (cloudStatusState == 3) {
+                // Flashing green three times on cloud connection success
+                if (statusLEDStep < 240) {
+                    bool shouldBeOn = ((statusLEDStep % 80) < 40);
+                    leds[statusLEDIndex] = shouldBeOn ? CRGB::Green : CRGB::Black;
+                } else {
+                    if (currentPattern == LEDPattern::CLOCK_DISPLAY && ledStates && ledStates[statusLEDIndex]) {
+                        leds[statusLEDIndex] = solidColor;
+                    } else {
+                        leds[statusLEDIndex] = CRGB::Black;
+                    }
+                    cloudStatusState = 0;
+                    statusLEDStep = 0;
+                }
+            } else if (cloudStatusState == 4) {
+                // Flashing red three times on cloud connection error
+                if (statusLEDStep < 240) {
+                    bool shouldBeOn = ((statusLEDStep % 80) < 40);
+                    leds[statusLEDIndex] = shouldBeOn ? CRGB::Red : CRGB::Black;
+                } else {
+                    if (currentPattern == LEDPattern::CLOCK_DISPLAY && ledStates && ledStates[statusLEDIndex]) {
+                        leds[statusLEDIndex] = solidColor;
+                    } else {
+                        leds[statusLEDIndex] = CRGB::Black;
+                    }
+                    cloudStatusState = 0;
+                    statusLEDStep = 0;
+                }
             }
         }
     }

@@ -127,6 +127,11 @@ void CloudManager::loop() {
                 consecutiveFailures++;
                 Serial.printf("Connection failed (%d/%d)\n", consecutiveFailures, MAX_CONSECUTIVE_FAILURES);
 
+                // Red flash for connection error
+                if (ledController) {
+                    ledController->setCloudStatusLED(4);
+                }
+
                 if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
                     inLongBackoff = true;
                     Serial.println("Max failures reached - entering 10 minute backoff");
@@ -142,6 +147,12 @@ void CloudManager::loop() {
         consecutiveFailures = 0;
         inLongBackoff = false;
         state = CloudState::CONNECTED;
+
+        // Turn off cloud status LED now that we're connected
+        if (ledController) {
+            ledController->setCloudStatusLED(0);
+        }
+
         Serial.println("MQTT connected!");
 
         // Subscribe to command topic with callback
@@ -181,6 +192,12 @@ bool CloudManager::connect() {
     }
 
     state = CloudState::CONNECTING;
+
+    // Set white breathing LED for connecting
+    if (ledController) {
+        ledController->setCloudStatusLED(2);
+    }
+
     Serial.println("Connecting to MQTT over WebSocket...");
 
     CloudSettings settings = config.load();
@@ -309,6 +326,11 @@ bool CloudManager::startPairing(const char* apiUrl) {
     lastPairingPoll = 0;
     state = CloudState::PAIRING;
 
+    // Set purple breathing LED for pairing mode
+    if (ledController) {
+        ledController->setCloudStatusLED(1);
+    }
+
     Serial.println("Pairing started - waiting for user to enter code");
 
     return true;
@@ -319,6 +341,12 @@ void CloudManager::stopPairing() {
     pairingCode = "";
     pairingSessionId = "";
     state = config.isConfigured() ? CloudState::DISCONNECTED : CloudState::DISCONNECTED;
+
+    // Turn off cloud status LED
+    if (ledController) {
+        ledController->setCloudStatusLED(0);
+    }
+
     Serial.println("Pairing stopped");
 }
 
@@ -441,6 +469,11 @@ bool CloudManager::pollPairingStatus() {
                     Serial.println("WARNING: No credentials in response");
                     config.setPaired(true);
                     config.setCloudEnabled(true);
+                }
+
+                // Green flash for pairing success
+                if (ledController) {
+                    ledController->setCloudStatusLED(3);
                 }
 
                 http.end();

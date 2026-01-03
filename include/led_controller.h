@@ -49,6 +49,7 @@ public:
     void setWiFiStatusLED(uint8_t state); // 0=off, 1=connecting, 2=AP mode
     void setTimeOTAStatusLED(uint8_t state); // 0=off, 1=OTA update, 2=OTA success, 3=OTA error, 4=NTP sync
     void setUpdateStatusLED(uint8_t state); // 0=off, 1=checking, 2=downloading, 3=update success, 4=update error
+    void setCloudStatusLED(uint8_t state); // 0=off, 1=pairing (purple), 2=connecting (white), 3=success, 4=error
     void updateStatusLEDs();
     void setStatusLEDsEnabled(bool enabled); // Enable/disable status LED system
     
@@ -111,6 +112,7 @@ private:
     uint8_t wifiStatusState;
     uint8_t timeOTAStatusState;
     uint8_t updateStatusState;
+    uint8_t cloudStatusState;
     unsigned long statusLEDUpdate;
     uint8_t statusLEDStep;
     bool statusLEDsEnabled;
