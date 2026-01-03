@@ -532,7 +532,18 @@ void WebServerManager::handleFactoryReset() {
     prefs.clear();
     prefs.end();
 
-    Serial.println("All settings cleared");
+    prefs.begin("birthdays", false);
+    prefs.clear();
+    prefs.end();
+
+    prefs.begin("cloud", false);
+    prefs.clear();
+    prefs.end();
+
+    // Clear WiFi credentials
+    WiFi.disconnect(true, true);
+
+    Serial.println("All settings cleared (including cloud and WiFi)");
     server.send(200, "text/plain", "Factory reset complete. Rebooting...");
     delay(500);
     ESP.restart();
