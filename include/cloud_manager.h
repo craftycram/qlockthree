@@ -28,6 +28,7 @@ enum class CloudCommandType {
     BRIGHTNESS,
     COLOR,
     PATTERN,
+    UNPAIR,
     UNKNOWN
 };
 

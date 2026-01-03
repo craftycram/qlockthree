@@ -567,6 +567,13 @@ void CloudManager::handleCommand(JsonObject& command) {
         cmdType = CloudCommandType::COLOR;
     } else if (type == "pattern") {
         cmdType = CloudCommandType::PATTERN;
+    } else if (type == "unpair") {
+        cmdType = CloudCommandType::UNPAIR;
+        // Handle unpair internally - clear credentials and disconnect
+        Serial.println("Received unpair command - clearing credentials");
+        config.clear();
+        disconnect();
+        state = CloudState::DISCONNECTED;
     }
 
     JsonObject payload = command["payload"].as<JsonObject>();
