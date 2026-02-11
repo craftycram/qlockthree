@@ -3,7 +3,9 @@
 const char* CloudConfig::NAMESPACE = "cloud";
 
 void CloudConfig::begin() {
-    // Just initialize - actual operations open/close as needed
+    // Create namespace if it doesn't exist (read-write mode creates it)
+    preferences.begin(NAMESPACE, false);
+    preferences.end();
     Serial.println("CloudConfig initialized");
 }
 
