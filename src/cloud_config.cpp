@@ -10,7 +10,9 @@ void CloudConfig::begin() {
 CloudSettings CloudConfig::load() {
     CloudSettings settings;
 
-    preferences.begin(NAMESPACE, true); // Read-only
+    if (!preferences.begin(NAMESPACE, true)) {
+        return settings; // Namespace doesn't exist yet, return defaults
+    }
 
     preferences.getString("mqtt_url", settings.mqttUrl, sizeof(settings.mqttUrl));
     preferences.getString("mqtt_user", settings.mqttUsername, sizeof(settings.mqttUsername));
@@ -50,7 +52,9 @@ void CloudConfig::clear() {
 }
 
 bool CloudConfig::isConfigured() {
-    preferences.begin(NAMESPACE, true);
+    if (!preferences.begin(NAMESPACE, true)) {
+        return false; // Namespace doesn't exist yet (never paired)
+    }
     bool hasUrl = preferences.isKey("mqtt_url") && strlen(preferences.getString("mqtt_url", "").c_str()) > 0;
     bool hasCredentials = preferences.isKey("mqtt_user") && strlen(preferences.getString("mqtt_user", "").c_str()) > 0;
     preferences.end();
@@ -59,7 +63,9 @@ bool CloudConfig::isConfigured() {
 }
 
 bool CloudConfig::isPaired() {
-    preferences.begin(NAMESPACE, true);
+    if (!preferences.begin(NAMESPACE, true)) {
+        return false; // Namespace doesn't exist yet
+    }
     bool paired = preferences.getBool("paired", false);
     preferences.end();
 
