@@ -52,7 +52,7 @@ static const WordMapping CONNECTOR_WORDS[] = {
 };
 
 // Minute dots for precise time (corner LEDs based on 125 LED total)
-static const uint8_t MINUTE_DOTS[] = {124, 123, 12, 0};
+static const uint16_t MINUTE_DOTS[] = {124, 123, 12, 0};
 
 static constexpr uint8_t STATUS_LED_WIFI = 11;
 static constexpr uint8_t STATUS_LED_SYSTEM = 10;

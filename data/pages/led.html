@@ -38,6 +38,15 @@
       </div>
     </div>
 
+    <!-- White Channel (RGBW only) -->
+    <div id="white-control" class="control-group" style="display:none">
+      <h3>White Channel (RGBW)</h3>
+      <label for="white-level">White Level: <span id="white-level-value">0</span></label>
+      <input type="range" id="white-level" class="slider" min="0" max="255" value="0"
+             oninput="updateWhiteLevel(this.value)">
+      <p><small>Adds dedicated white LED light independently of the RGB color. Only available on RGBW strips.</small></p>
+    </div>
+
     <!-- Animation Speed -->
     <div class="control-group">
       <h3>Animation Speed</h3>
@@ -114,6 +123,12 @@
 
         if (data.strip_type !== undefined) {
           document.getElementById('strip-type').value = data.strip_type;
+          document.getElementById('white-control').style.display = data.strip_type === 1 ? '' : 'none';
+        }
+
+        if (data.white_level !== undefined) {
+          document.getElementById('white-level').value = data.white_level;
+          setText('white-level-value', data.white_level);
         }
       } catch (err) {
         console.error('Failed to load settings:', err);
@@ -153,6 +168,11 @@
       await API.post('/led/config', { color_r: r, color_g: g, color_b: b });
     }
 
+    function updateWhiteLevel(val) {
+      setText('white-level-value', val);
+      sendConfig('white_level', val);
+    }
+
     async function updateStripType(value) {
       const typeName = value === '1' ? 'RGBW (SK6812)' : 'RGB (WS2812)';
       if (!confirm('Change LED strip type to ' + typeName + '? LEDs will briefly reinitialize.')) {
@@ -161,6 +181,7 @@
         return;
       }
       await API.post('/led/config', { strip_type: value });
+      document.getElementById('white-control').style.display = value === '1' ? '' : 'none';
     }
 
     async function saveSettings() {

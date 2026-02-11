@@ -13,6 +13,7 @@ LEDController::LEDController() :
     stripType(LEDStripType::RGB),
     colorTemperatureKelvin(0),
     settingFromColorTemp(false),
+    whiteLevel(0),
     lastUpdate(0),
     animationStep(0),
     hue(0),
@@ -59,6 +60,9 @@ void LEDController::begin(int pin, int numLedsCount, int brightnessValue) {
     // Load color temperature
     colorTemperatureKelvin = preferences.getUShort("color_temp", 0);
 
+    // Load white level
+    whiteLevel = preferences.getUChar("white_level", 0);
+
     Serial.println("LED Controller settings loaded:");
     Serial.printf("- Data Pin: %d\n", dataPin);
     Serial.printf("- Num LEDs: %d\n", numLeds);
@@ -66,6 +70,7 @@ void LEDController::begin(int pin, int numLedsCount, int brightnessValue) {
     Serial.printf("- Speed: %d\n", speed);
     Serial.printf("- Strip Type: %s\n", stripType == LEDStripType::RGBW ? "RGBW" : "RGB");
     Serial.printf("- Color Temp: %dK\n", colorTemperatureKelvin);
+    Serial.printf("- White Level: %d\n", whiteLevel);
 
     // Allocate LED arrays
     leds = new CRGB[numLeds];
@@ -150,7 +155,7 @@ void LEDController::update() {
             
         case LEDPattern::SOLID_COLOR:
             // Apply solid color to all LEDs
-            fill(solidColor);
+            fill(getDisplayColor());
             break;
             
         case LEDPattern::RAINBOW:
@@ -203,7 +208,7 @@ void LEDController::setPattern(LEDPattern pattern) {
                 break;
                 
             case LEDPattern::SOLID_COLOR:
-                fill(solidColor);
+                fill(getDisplayColor());
                 Serial.printf("DEBUG: Pattern SOLID_COLOR - filled with RGB(%d, %d, %d)\n", solidColor.r, solidColor.g, solidColor.b);
                 break;
                 
@@ -246,7 +251,7 @@ void LEDController::setSolidColor(CRGB color) {
     Serial.printf("DEBUG: Current pattern is: %d\n", (int)currentPattern);
 
     if (currentPattern == LEDPattern::SOLID_COLOR) {
-        fill(color);
+        fill(getDisplayColor());
         FastLED.show();
         Serial.println("DEBUG: Applied solid color and updated FastLED");
     } else {
@@ -295,9 +300,10 @@ void LEDController::showTime(int hours, int minutes, int weekday) {
     }
 
     // Apply LED states to actual LEDs
+    CRGB displayColor = getDisplayColor();
     for (int i = 0; i < numLeds; i++) {
         if (ledStates[i]) {
-            leds[i] = solidColor;
+            leds[i] = displayColor;
         } else {
             leds[i] = CRGB::Black;
         }
@@ -317,9 +323,10 @@ void LEDController::showBirthdayOnly() {
     mappingManager.calculateBirthdayDisplay(ledStates);
 
     // Apply LED states
+    CRGB displayColor = getDisplayColor();
     for (int i = 0; i < numLeds; i++) {
         if (ledStates[i]) {
-            leds[i] = solidColor;
+            leds[i] = displayColor;
         } else {
             leds[i] = CRGB::Black;
         }
@@ -343,9 +350,10 @@ void LEDController::showBirthdayOverlay(int hours, int minutes, int weekday) {
     mappingManager.calculateBirthdayDisplay(ledStates);
 
     // Apply LED states
+    CRGB displayColor = getDisplayColor();
     for (int i = 0; i < numLeds; i++) {
         if (ledStates[i]) {
-            leds[i] = solidColor;
+            leds[i] = displayColor;
         } else {
             leds[i] = CRGB::Black;
         }
@@ -658,6 +666,20 @@ void LEDController::setColorTemperature(uint16_t kelvin) {
     saveSettings();
 }
 
+CRGB LEDController::getDisplayColor() const {
+    if (stripType == LEDStripType::RGBW && whiteLevel > 0) {
+        return CRGB(qadd8(solidColor.r, whiteLevel),
+                     qadd8(solidColor.g, whiteLevel),
+                     qadd8(solidColor.b, whiteLevel));
+    }
+    return solidColor;
+}
+
+void LEDController::setWhiteLevel(uint8_t level) {
+    whiteLevel = level;
+    saveSettings();
+}
+
 // Configuration management functions
 void LEDController::loadSettings() {
     if (!preferences.begin("led_config", true)) {
@@ -677,6 +699,9 @@ void LEDController::loadSettings() {
 
     // Load color temperature
     uint16_t savedColorTemp = preferences.getUShort("color_temp", 0);
+
+    // Load white level
+    uint8_t savedWhiteLevel = preferences.getUChar("white_level", 0);
 
     // Load saved color (default to neutral warm white)
     uint32_t savedColor = preferences.getUInt("solid_color", 0xFFDCB4);  // RGB(255, 220, 180)
@@ -699,6 +724,9 @@ void LEDController::loadSettings() {
     // Restore color temperature (after setSolidColor which would clear it)
     colorTemperatureKelvin = savedColorTemp;
 
+    // Restore white level
+    whiteLevel = savedWhiteLevel;
+
     Serial.println("LED settings loaded from NVS");
 }
 
@@ -720,6 +748,9 @@ void LEDController::saveSettings() {
 
     // Save color temperature
     preferences.putUShort("color_temp", colorTemperatureKelvin);
+
+    // Save white level
+    preferences.putUChar("white_level", whiteLevel);
 
     // Save color as 32-bit value
     uint32_t colorValue = ((uint32_t)solidColor.r << 16) |

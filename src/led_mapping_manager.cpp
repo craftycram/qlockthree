@@ -374,8 +374,8 @@ void LEDMappingManager::illuminateMinuteDots(bool* ledStates, uint8_t numDots) {
     if (!ledStates || !minuteDotLEDs || numDots == 0) return;
 
     for (uint8_t i = 0; i < numDots && i < minuteDotCount; i++) {
-        uint8_t originalIndex = minuteDotLEDs[i];
-        uint8_t transformedIndex = transformLedIndex(originalIndex);
+        uint16_t originalIndex = minuteDotLEDs[i];
+        uint16_t transformedIndex = transformLedIndex(originalIndex);
         if (transformedIndex < currentMappingLEDCount) {
             ledStates[transformedIndex] = true;
         }
@@ -446,7 +446,7 @@ String LEDMappingManager::getAvailableMappingsJSON() const {
     String json = "[";
     json += "{\"name\":\"45cm German\",\"id\":\"45\",\"type\":0,\"led_count\":125,\"status\":\"active\"}";
     json += ",{\"name\":\"45cm Swabian (BW)\",\"id\":\"45bw\",\"type\":1,\"led_count\":125,\"status\":\"active\"}";
-    json += ",{\"name\":\"69cm German\",\"id\":\"69\",\"type\":2,\"led_count\":125,\"status\":\"active\"}";
+    json += ",{\"name\":\"69cm German\",\"id\":\"69\",\"type\":2,\"led_count\":242,\"status\":\"active\"}";
     json += "]";
     return json;
 }
@@ -549,7 +549,7 @@ void LEDMappingManager::setMappingArrays(const WordMapping* base, uint8_t baseCo
                                        const WordMapping* hours, uint8_t hourCount,
                                        const WordMapping* minutes, uint8_t minuteCount,
                                        const WordMapping* connectors, uint8_t connectorCount,
-                                       const uint8_t* dots, uint8_t dotCount) {
+                                       const uint16_t* dots, uint8_t dotCount) {
     baseWords = base;
     hourWords = hours;
     minuteWords = minutes;
@@ -749,7 +749,7 @@ void LEDMappingManager::rotateCoords(int8_t& row, int8_t& col) const {
     col = newCol;
 }
 
-uint8_t LEDMappingManager::transformLedIndex(uint8_t originalIndex) const {
+uint16_t LEDMappingManager::transformLedIndex(uint16_t originalIndex) const {
     if (rotationDegrees == 0) {
         return originalIndex;  // No transformation needed
     }

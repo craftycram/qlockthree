@@ -523,6 +523,7 @@ void CloudManager::publishStatus() {
         doc["colorB"] = color.b;
 
         doc["stripType"] = (ledController->getStripType() == LEDStripType::RGBW) ? "RGBW" : "RGB";
+        doc["whiteLevel"] = ledController->getWhiteLevel();
 
         uint16_t colorTempK = ledController->getColorTemperatureKelvin();
         if (colorTempK > 0) {

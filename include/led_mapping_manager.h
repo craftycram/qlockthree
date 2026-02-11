@@ -70,7 +70,7 @@ private:
     void indexToCoords(uint8_t ledIndex, int8_t& row, int8_t& col) const;
     uint8_t coordsToIndex(int8_t row, int8_t col) const;
     void rotateCoords(int8_t& row, int8_t& col) const;
-    uint8_t transformLedIndex(uint8_t originalIndex) const;
+    uint16_t transformLedIndex(uint16_t originalIndex) const;
     Preferences preferences;
     MappingType currentMappingType;
     
@@ -94,7 +94,7 @@ private:
     const WordMapping* hourWords;
     const WordMapping* minuteWords;
     const WordMapping* connectorWords;
-    const uint8_t* minuteDotLEDs;
+    const uint16_t* minuteDotLEDs;
     
     uint8_t baseWordsCount;
     uint8_t hourWordsCount;
@@ -113,7 +113,7 @@ private:
                          const WordMapping* hours, uint8_t hourCount,
                          const WordMapping* minutes, uint8_t minuteCount,
                          const WordMapping* connectors, uint8_t connectorCount,
-                         const uint8_t* dots, uint8_t dotCount);
+                         const uint16_t* dots, uint8_t dotCount);
     void setMappingFunctions(bool (*showBase)(),
                            uint8_t (*hourIndex)(uint8_t, uint8_t),
                            int8_t (*minuteIndex)(uint8_t),

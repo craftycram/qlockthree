@@ -10,7 +10,7 @@ namespace Mapping69
     static constexpr const char *MAPPING_NAME = "69cm qlockthree 11x11";
     static constexpr const char *MAPPING_ID = "69cm";
     static constexpr const char *MAPPING_LANGUAGE = "DE";
-    static constexpr uint16_t MAPPING_TOTAL_LEDS = 125;
+    static constexpr uint16_t MAPPING_TOTAL_LEDS = 242;
     static constexpr const char *MAPPING_DESCRIPTION = "69cm German qlockthree with 11x11 grid, weekdays, and 4 corner dots";
 
     static const WordMapping BASE_WORDS[] = {
@@ -47,7 +47,7 @@ namespace Mapping69
         {"NACH", 66, 8, true}, // Zeile 3 (Reversed)
         {"UHR", 198, 6, true}, // Zeile 9 (Reversed)
     };
-    static const uint8_t MINUTE_DOTS[] = {124, 123, 12, 0};
+    static const uint16_t MINUTE_DOTS[] = {1124, 1123, 1112, 1110};
 
     static constexpr uint8_t STATUS_LED_WIFI = 11;
     static constexpr uint8_t STATUS_LED_SYSTEM = 10;

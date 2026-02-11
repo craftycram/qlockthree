@@ -113,6 +113,13 @@ void WebServerManager::setupRoutes() {
             }
         }
 
+        if (server.hasArg("white_level")) {
+            int wl = server.arg("white_level").toInt();
+            if (wl >= 0 && wl <= 255) {
+                ledController->setWhiteLevel(wl);
+            }
+        }
+
         // LED count is now determined by mapping, not manually configured
 
         // ENHANCED: Color configuration support
@@ -394,6 +401,8 @@ String WebServerManager::getLEDStatusJSON() {
 
         json += "\"strip_type\":" + String((int)ledController->getStripType()) + ",";
 
+        json += "\"white_level\":" + String(ledController->getWhiteLevel()) + ",";
+
         int pattern = (int)ledController->getCurrentPattern();
         json += "\"pattern\":" + String(pattern);
     } else {
@@ -428,6 +437,10 @@ void WebServerManager::handleSetLEDMapping() {
                 server.send(200, "text/plain", "Mapping changed to 45cm Swabian (BW)");
                 break;
             case 2:
+                ledController->setMapping(MappingType::MAPPING_69_GERMAN);
+                server.send(200, "text/plain", "Mapping changed to 69cm German");
+                break;
+            case 3:
                 ledController->setMapping(MappingType::MAPPING_110_GERMAN);
                 server.send(200, "text/plain", "Mapping changed to 110-LED German Layout");
                 break;

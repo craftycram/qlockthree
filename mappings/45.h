@@ -47,7 +47,7 @@ static const WordMapping CONNECTOR_WORDS[] = {
     {"UHR", 15, 3, false},
 };
 
-static const uint8_t MINUTE_DOTS[] = {124, 123, 12, 0};
+static const uint16_t MINUTE_DOTS[] = {124, 123, 12, 0};
 
 static constexpr uint8_t STATUS_LED_WIFI = 11;
 static constexpr uint8_t STATUS_LED_SYSTEM = 10;

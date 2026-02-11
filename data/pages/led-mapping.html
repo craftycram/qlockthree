@@ -30,11 +30,13 @@
       <select id="mapping-select">
         <option value="0">45cm German (125 LEDs)</option>
         <option value="1">45cm Swabian (125 LEDs)</option>
-        <option value="2">110-LED Layout</option>
+        <option value="2">69cm German (242 LEDs)</option>
+        <option value="3">110-LED Layout</option>
       </select>
       <p><small>
         <strong>German:</strong> Standard German time display (ES IST...)<br>
         <strong>Swabian:</strong> Swabian dialect variant (VIERTEL NACH vs VIERTEL)<br>
+        <strong>69cm:</strong> Larger 69cm German layout with 242 LEDs<br>
         <strong>110-LED:</strong> Compact layout with 110 LEDs
       </small></p>
       <button onclick="setMapping()" class="button mapping-btn">Apply Mapping</button>
@@ -66,7 +68,8 @@
     const mappingNames = {
       0: '45cm German',
       1: '45cm Swabian',
-      2: '110-LED Layout'
+      2: '69cm German',
+      3: '110-LED Layout'
     };
 
     async function loadMappingStatus() {

@@ -94,6 +94,10 @@ public:
     uint16_t getColorTemperatureKelvin() const { return colorTemperatureKelvin; }
     void setColorTemperature(uint16_t kelvin);
 
+    // White channel (RGBW only)
+    uint8_t getWhiteLevel() const { return whiteLevel; }
+    void setWhiteLevel(uint8_t level);
+
 private:
     Preferences preferences;
     LEDMappingManager mappingManager;
@@ -109,6 +113,7 @@ private:
     LEDStripType stripType;
     uint16_t colorTemperatureKelvin;
     bool settingFromColorTemp;
+    uint8_t whiteLevel;
 
     // Animation state
     unsigned long lastUpdate;
@@ -144,6 +149,9 @@ private:
     
     // FastLED initialization helper
     void initFastLED();
+
+    // White channel helper: returns solidColor with white blended in (RGBW only)
+    CRGB getDisplayColor() const;
 
     // Pattern implementations
     void updateRainbow();
