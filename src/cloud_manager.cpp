@@ -522,6 +522,15 @@ void CloudManager::publishStatus() {
         doc["colorG"] = color.g;
         doc["colorB"] = color.b;
 
+        doc["stripType"] = (ledController->getStripType() == LEDStripType::RGBW) ? "RGBW" : "RGB";
+
+        uint16_t colorTempK = ledController->getColorTemperatureKelvin();
+        if (colorTempK > 0) {
+            doc["colorTemperatureInKelvin"] = colorTempK;
+        } else {
+            doc["colorTemperatureInKelvin"] = (char*)nullptr; // JSON null
+        }
+
         // Convert pattern to string
         switch (pattern) {
             case LEDPattern::OFF: doc["pattern"] = "OFF"; break;
@@ -567,6 +576,8 @@ void CloudManager::handleCommand(JsonObject& command) {
         cmdType = CloudCommandType::COLOR;
     } else if (type == "pattern") {
         cmdType = CloudCommandType::PATTERN;
+    } else if (type == "colorTemperature") {
+        cmdType = CloudCommandType::COLOR_TEMPERATURE;
     } else if (type == "unpair") {
         cmdType = CloudCommandType::UNPAIR;
         // Handle unpair internally - clear credentials and disconnect

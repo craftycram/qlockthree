@@ -9,6 +9,9 @@
 #include <freertos/task.h>
 #include <freertos/semphr.h>
 
+// LED strip type (RGB vs RGBW)
+enum class LEDStripType : uint8_t { RGB = 0, RGBW = 1 };
+
 // qlockthree LED patterns and animations
 enum class LEDPattern {
     OFF,
@@ -84,6 +87,12 @@ public:
     int getNumLeds() const { return numLeds; }
     int getDataPin() const { return dataPin; }
     CRGB getSolidColor() const { return solidColor; }
+    LEDStripType getStripType() const { return stripType; }
+    void setStripType(LEDStripType type);
+
+    // Color temperature
+    uint16_t getColorTemperatureKelvin() const { return colorTemperatureKelvin; }
+    void setColorTemperature(uint16_t kelvin);
 
 private:
     Preferences preferences;
@@ -97,7 +106,10 @@ private:
     uint8_t speed;
     LEDPattern currentPattern;
     CRGB solidColor;
-    
+    LEDStripType stripType;
+    uint16_t colorTemperatureKelvin;
+    bool settingFromColorTemp;
+
     // Animation state
     unsigned long lastUpdate;
     uint8_t animationStep;
@@ -130,6 +142,9 @@ private:
     static void ledTaskFunction(void* parameter);
     void ledTaskLoop();
     
+    // FastLED initialization helper
+    void initFastLED();
+
     // Pattern implementations
     void updateRainbow();
     void updateBreathing();

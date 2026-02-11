@@ -156,6 +156,12 @@ void setup() {
                     }
                     break;
                 }
+                case CloudCommandType::COLOR_TEMPERATURE: {
+                    int kelvin = payload["kelvin"].as<int>();
+                    Serial.printf("Color temperature command: %dK\n", kelvin);
+                    ledController.setColorTemperature(static_cast<uint16_t>(kelvin));
+                    break;
+                }
                 default:
                     Serial.println("Unknown cloud command type");
                     break;

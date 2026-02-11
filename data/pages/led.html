@@ -51,6 +51,12 @@
       <p><strong>LED Count:</strong> <span id="num-leds">0</span> LEDs</p>
       <p><strong>Data Pin:</strong> GPIO <span id="data-pin">0</span></p>
       <p><small><em>Note: LED count is automatically set by the selected mapping. Use <a href="/led/mapping">LED Mapping</a> to change the layout.</em></small></p>
+
+      <label for="strip-type"><strong>LED Strip Type:</strong></label>
+      <select id="strip-type" onchange="updateStripType(this.value)">
+        <option value="0">WS2812 RGB (3-channel)</option>
+        <option value="1">SK6812 RGBW (4-channel)</option>
+      </select>
     </div>
 
     <!-- Pattern Tests -->
@@ -105,6 +111,10 @@
           document.getElementById('clock-color').value = hex;
           document.getElementById('clock-color-preview').style.backgroundColor = hex;
         }
+
+        if (data.strip_type !== undefined) {
+          document.getElementById('strip-type').value = data.strip_type;
+        }
       } catch (err) {
         console.error('Failed to load settings:', err);
       }
@@ -141,6 +151,16 @@
 
     async function sendColorConfig(r, g, b) {
       await API.post('/led/config', { color_r: r, color_g: g, color_b: b });
+    }
+
+    async function updateStripType(value) {
+      const typeName = value === '1' ? 'RGBW (SK6812)' : 'RGB (WS2812)';
+      if (!confirm('Change LED strip type to ' + typeName + '? LEDs will briefly reinitialize.')) {
+        // Revert dropdown to current value
+        loadCurrentSettings();
+        return;
+      }
+      await API.post('/led/config', { strip_type: value });
     }
 
     async function saveSettings() {

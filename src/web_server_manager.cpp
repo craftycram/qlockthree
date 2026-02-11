@@ -105,8 +105,16 @@ void WebServerManager::setupRoutes() {
             }
         }
         
+        if (server.hasArg("strip_type")) {
+            int type = server.arg("strip_type").toInt();
+            if (type == 0 || type == 1) {
+                ledController->setStripType(static_cast<LEDStripType>(type));
+                Serial.printf("Strip type changed to %s via web interface\n", type == 1 ? "RGBW" : "RGB");
+            }
+        }
+
         // LED count is now determined by mapping, not manually configured
-        
+
         // ENHANCED: Color configuration support
         if (server.hasArg("color_r") && server.hasArg("color_g") && server.hasArg("color_b")) {
             Serial.println("DEBUG: Web server received color_r, color_g, color_b parameters");
@@ -383,6 +391,8 @@ String WebServerManager::getLEDStatusJSON() {
         json += "\"g\":" + String(color.g) + ",";
         json += "\"b\":" + String(color.b);
         json += "},";
+
+        json += "\"strip_type\":" + String((int)ledController->getStripType()) + ",";
 
         int pattern = (int)ledController->getCurrentPattern();
         json += "\"pattern\":" + String(pattern);

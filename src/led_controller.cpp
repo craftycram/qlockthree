@@ -1,4 +1,5 @@
 #include "led_controller.h"
+#include "config.h"
 
 LEDController::LEDController() :
     leds(nullptr),
@@ -9,6 +10,9 @@ LEDController::LEDController() :
     speed(50),
     currentPattern(LEDPattern::OFF),
     solidColor(CRGB(255, 220, 180)),  // Neutral warm white instead of harsh pure white
+    stripType(LEDStripType::RGB),
+    colorTemperatureKelvin(0),
+    settingFromColorTemp(false),
     lastUpdate(0),
     animationStep(0),
     hue(0),
@@ -48,12 +52,21 @@ void LEDController::begin(int pin, int numLedsCount, int brightnessValue) {
         savedColor & 0xFF           // Blue
     );
     
+    // Load strip type
+    uint8_t savedStripType = preferences.getUChar("strip_type", DEFAULT_LED_STRIP_TYPE);
+    stripType = (savedStripType == LED_STRIP_TYPE_RGBW) ? LEDStripType::RGBW : LEDStripType::RGB;
+
+    // Load color temperature
+    colorTemperatureKelvin = preferences.getUShort("color_temp", 0);
+
     Serial.println("LED Controller settings loaded:");
     Serial.printf("- Data Pin: %d\n", dataPin);
     Serial.printf("- Num LEDs: %d\n", numLeds);
     Serial.printf("- Brightness: %d\n", brightness);
     Serial.printf("- Speed: %d\n", speed);
-    
+    Serial.printf("- Strip Type: %s\n", stripType == LEDStripType::RGBW ? "RGBW" : "RGB");
+    Serial.printf("- Color Temp: %dK\n", colorTemperatureKelvin);
+
     // Allocate LED arrays
     leds = new CRGB[numLeds];
     ledStates = new bool[numLeds];
@@ -70,9 +83,8 @@ void LEDController::begin(int pin, int numLedsCount, int brightnessValue) {
     mappingManager.begin();
     Serial.println("DEBUG: LED mapping manager initialization complete");
     
-    // Initialize FastLED with GRB color order (correct for your WS2812 strips)
-    FastLED.addLeds<WS2812, 0, GRB>(leds, numLeds).setCorrection(TypicalLEDStrip);
-    FastLED.setBrightness(brightness);
+    // Initialize FastLED
+    initFastLED();
     
     // Clear all LEDs initially
     clear();
@@ -225,8 +237,14 @@ void LEDController::setPattern(LEDPattern pattern) {
 void LEDController::setSolidColor(CRGB color) {
     Serial.printf("DEBUG: setSolidColor called with RGB(%d, %d, %d)\n", color.r, color.g, color.b);
     solidColor = color;
+
+    // Clear color temperature when an explicit color is set (not from setColorTemperature)
+    if (!settingFromColorTemp) {
+        colorTemperatureKelvin = 0;
+    }
+
     Serial.printf("DEBUG: Current pattern is: %d\n", (int)currentPattern);
-    
+
     if (currentPattern == LEDPattern::SOLID_COLOR) {
         fill(color);
         FastLED.show();
@@ -551,6 +569,95 @@ void LEDController::ledTaskLoop() {
 }
 
 
+void LEDController::initFastLED() {
+    auto& controller = FastLED.addLeds<WS2812, 0, GRB>(leds, numLeds);
+    controller.setCorrection(TypicalLEDStrip);
+    if (stripType == LEDStripType::RGBW) {
+        controller.setRgbw(RgbwDefault());
+    }
+    FastLED.setBrightness(brightness);
+    Serial.printf("FastLED initialized in %s mode\n", stripType == LEDStripType::RGBW ? "RGBW" : "RGB");
+}
+
+void LEDController::setStripType(LEDStripType type) {
+    if (type == stripType) return;
+
+    Serial.printf("Changing strip type from %s to %s\n",
+        stripType == LEDStripType::RGBW ? "RGBW" : "RGB",
+        type == LEDStripType::RGBW ? "RGBW" : "RGB");
+
+    if (taskRunning && ledMutex != nullptr) {
+        if (xSemaphoreTake(ledMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+            stripType = type;
+            FastLED.clear();
+            initFastLED();
+            clear();
+            FastLED.show();
+            xSemaphoreGive(ledMutex);
+        } else {
+            Serial.println("Failed to acquire mutex for strip type change");
+            return;
+        }
+    } else {
+        stripType = type;
+        FastLED.clear();
+        initFastLED();
+        clear();
+        FastLED.show();
+    }
+
+    saveSettings();
+}
+
+void LEDController::setColorTemperature(uint16_t kelvin) {
+    // Clamp to valid range
+    if (kelvin < 1000) kelvin = 1000;
+    if (kelvin > 10000) kelvin = 10000;
+
+    // Tanner Helland approximation: Kelvin -> RGB
+    double temp = kelvin / 100.0;
+    double r, g, b;
+
+    // Red
+    if (temp <= 66) {
+        r = 255;
+    } else {
+        r = 329.698727446 * pow(temp - 60, -0.1332047592);
+        if (r < 0) r = 0;
+        if (r > 255) r = 255;
+    }
+
+    // Green
+    if (temp <= 66) {
+        g = 99.4708025861 * log(temp) - 161.1195681661;
+    } else {
+        g = 288.1221695283 * pow(temp - 60, -0.0755148492);
+    }
+    if (g < 0) g = 0;
+    if (g > 255) g = 255;
+
+    // Blue
+    if (temp >= 66) {
+        b = 255;
+    } else if (temp <= 19) {
+        b = 0;
+    } else {
+        b = 138.5177312231 * log(temp - 10) - 305.0447927307;
+        if (b < 0) b = 0;
+        if (b > 255) b = 255;
+    }
+
+    CRGB color((uint8_t)r, (uint8_t)g, (uint8_t)b);
+    Serial.printf("Color temperature %dK -> RGB(%d, %d, %d)\n", kelvin, color.r, color.g, color.b);
+
+    settingFromColorTemp = true;
+    setSolidColor(color);
+    settingFromColorTemp = false;
+
+    colorTemperatureKelvin = kelvin;
+    saveSettings();
+}
+
 // Configuration management functions
 void LEDController::loadSettings() {
     if (!preferences.begin("led_config", true)) {
@@ -564,6 +671,13 @@ void LEDController::loadSettings() {
     uint8_t newBrightness = preferences.getUChar("brightness", brightness);
     uint8_t newSpeed = preferences.getUChar("speed", speed);
     
+    // Load strip type
+    uint8_t savedStripType = preferences.getUChar("strip_type", DEFAULT_LED_STRIP_TYPE);
+    LEDStripType newStripType = (savedStripType == LED_STRIP_TYPE_RGBW) ? LEDStripType::RGBW : LEDStripType::RGB;
+
+    // Load color temperature
+    uint16_t savedColorTemp = preferences.getUShort("color_temp", 0);
+
     // Load saved color (default to neutral warm white)
     uint32_t savedColor = preferences.getUInt("solid_color", 0xFFDCB4);  // RGB(255, 220, 180)
     CRGB newSolidColor = CRGB(
@@ -571,16 +685,20 @@ void LEDController::loadSettings() {
         (savedColor >> 8) & 0xFF,   // Green
         savedColor & 0xFF           // Blue
     );
-    
+
     preferences.end();
-    
+
     // Apply loaded settings
     setDataPin(newDataPin);
     setNumLeds(newNumLeds);
     setBrightness(newBrightness);
     setSpeed(newSpeed);
     setSolidColor(newSolidColor);
-    
+    setStripType(newStripType);
+
+    // Restore color temperature (after setSolidColor which would clear it)
+    colorTemperatureKelvin = savedColorTemp;
+
     Serial.println("LED settings loaded from NVS");
 }
 
@@ -597,14 +715,20 @@ void LEDController::saveSettings() {
     preferences.putUChar("brightness", brightness);
     preferences.putUChar("speed", speed);
     
+    // Save strip type
+    preferences.putUChar("strip_type", static_cast<uint8_t>(stripType));
+
+    // Save color temperature
+    preferences.putUShort("color_temp", colorTemperatureKelvin);
+
     // Save color as 32-bit value
-    uint32_t colorValue = ((uint32_t)solidColor.r << 16) | 
-                         ((uint32_t)solidColor.g << 8) | 
+    uint32_t colorValue = ((uint32_t)solidColor.r << 16) |
+                         ((uint32_t)solidColor.g << 8) |
                          (uint32_t)solidColor.b;
     preferences.putUInt("solid_color", colorValue);
-    
+
     preferences.end();
-    
+
     Serial.println("LED settings saved to NVS");
 }
 
@@ -620,8 +744,7 @@ void LEDController::setNumLeds(int count) {
         
         // Reinitialize FastLED with new count
         FastLED.clear();
-        FastLED.addLeds<WS2812, 0, GRB>(leds, numLeds).setCorrection(TypicalLEDStrip);
-        FastLED.setBrightness(brightness);
+        initFastLED();
         
         clear();
         FastLED.show();

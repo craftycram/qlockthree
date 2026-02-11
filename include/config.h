@@ -30,6 +30,11 @@
 #define LED_ANIMATION_SPEED 50 // Default animation speed (0-255)
 // NOTE: LED count is determined by the selected mapping, not configured here
 
+// LED Strip Type Configuration
+#define LED_STRIP_TYPE_RGB  0   // WS2812 RGB (3-channel, default)
+#define LED_STRIP_TYPE_RGBW 1   // SK6812 RGBW (4-channel with white)
+#define DEFAULT_LED_STRIP_TYPE LED_STRIP_TYPE_RGB
+
 // qlockthree LED Layout - Customize for your specific word grid
 #define LED_REVERSE_ORDER false     // Reverse LED strip direction if needed
 #define LED_CORNER_LEDS 4            // Number of corner minute indicator LEDs

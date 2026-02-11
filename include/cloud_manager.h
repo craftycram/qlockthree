@@ -29,6 +29,7 @@ enum class CloudCommandType {
     COLOR,
     PATTERN,
     UNPAIR,
+    COLOR_TEMPERATURE,
     UNKNOWN
 };
 
