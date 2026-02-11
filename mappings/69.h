@@ -1,16 +1,16 @@
-#ifndef MAPPING_45_H
-#define MAPPING_45_H
+#ifndef MAPPING_69_H
+#define MAPPING_69_H
 
 #include "mapping_base.h"
 
-namespace Mapping45 {
+namespace Mapping69 {
 
 // Mapping metadata (using constexpr to avoid macro conflicts with other mappings)
-static constexpr const char* MAPPING_NAME = "45cm qlockthree 11x11";
-static constexpr const char* MAPPING_ID = "45cm";
+static constexpr const char* MAPPING_NAME = "69cm qlockthree 11x11";
+static constexpr const char* MAPPING_ID = "69cm";
 static constexpr const char* MAPPING_LANGUAGE = "DE";
 static constexpr uint16_t MAPPING_TOTAL_LEDS = 125;
-static constexpr const char* MAPPING_DESCRIPTION = "45cm German qlockthree with 11x11 grid, weekdays, and 4 corner dots";
+static constexpr const char* MAPPING_DESCRIPTION = "69cm German qlockthree with 11x11 grid, weekdays, and 4 corner dots";
 
 static const WordMapping BASE_WORDS[] = {
     {"ES", 0, 4, false},
@@ -186,6 +186,6 @@ inline bool shouldShowWeekday() {
     return true; // Can be made configurable via web interface
 }
 
-} // namespace Mapping45
+} // namespace Mapping69
 
-#endif // MAPPING_45_H
+#endif // MAPPING_69_H

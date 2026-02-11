@@ -1,6 +1,7 @@
 #include "led_mapping_manager.h"
 #include "../mappings/45.h"
 #include "../mappings/45bw.h"
+#include "../mappings/69.h"
 
 // Helper macro to reduce boilerplate when loading mappings
 // Use within a scope where the mapping namespace is imported
@@ -118,6 +119,27 @@ void LEDMappingManager::loadMapping(MappingType type) {
             isHalfPast = Mapping45BW::isHalfPast;
         } break;
 
+        case MappingType::MAPPING_69_GERMAN: {
+            Serial.println("MAPPING DEBUG: Loading 69cm German mapping...");
+            using namespace Mapping69;
+
+            setMappingData(MAPPING_NAME, MAPPING_ID, MAPPING_DESCRIPTION, MAPPING_TOTAL_LEDS);
+
+            setMappingArrays(BASE_WORDS, sizeof(BASE_WORDS)/sizeof(BASE_WORDS[0]),
+                            HOUR_WORDS, sizeof(HOUR_WORDS)/sizeof(HOUR_WORDS[0]),
+                            MINUTE_WORDS, sizeof(MINUTE_WORDS)/sizeof(MINUTE_WORDS[0]),
+                            CONNECTOR_WORDS, sizeof(CONNECTOR_WORDS)/sizeof(CONNECTOR_WORDS[0]),
+                            MINUTE_DOTS, sizeof(MINUTE_DOTS)/sizeof(MINUTE_DOTS[0]));
+
+            shouldShowBaseWords = Mapping69::shouldShowBaseWords;
+            getHourWordIndex = Mapping69::getHourWordIndex;
+            getMinuteWordIndex = Mapping69::getMinuteWordIndex;
+            getMinutePrefixWordIndex = Mapping69::getMinutePrefixWordIndex;
+            getConnectorWordIndex = Mapping69::getConnectorWordIndex;
+            getMinuteDots = Mapping69::getMinuteDots;
+            isHalfPast = Mapping69::isHalfPast;
+        } break;
+
         case MappingType::MAPPING_110_GERMAN: {
             // TODO: Create mappings/110.h, add #include, then uncomment:
             // using namespace Mapping110;
@@ -160,6 +182,8 @@ void LEDMappingManager::setCustomMapping(const char* mappingId) {
         loadMapping(MappingType::MAPPING_45_GERMAN);
     } else if (String(mappingId) == "45bw") {
         loadMapping(MappingType::MAPPING_45BW_GERMAN);
+    } else if (String(mappingId) == "69") {
+        loadMapping(MappingType::MAPPING_69_GERMAN);
     } else if (String(mappingId) == "110") {
         loadMapping(MappingType::MAPPING_110_GERMAN);
     } else {
@@ -269,6 +293,15 @@ void LEDMappingManager::calculateTimeDisplayWithWeekday(uint8_t hour, uint8_t mi
             }
         } break;
         
+        case MappingType::MAPPING_69_GERMAN: {
+            if (Mapping69::shouldShowWeekday()) {
+                uint8_t weekdayIndex = Mapping69::getWeekdayIndex(weekday);
+                if (weekdayIndex < 7) {
+                    illuminateWord(ledStates, Mapping69::WEEKDAY_WORDS[weekdayIndex]);
+                }
+            }
+        } break;
+
         case MappingType::MAPPING_110_GERMAN: {
             // TODO: Add weekday support for 110-LED mapping when implemented
         } break;
@@ -292,6 +325,11 @@ void LEDMappingManager::calculateBirthdayDisplay(bool* ledStates) {
         case MappingType::MAPPING_45BW_GERMAN: {
             illuminateWord(ledStates, Mapping45BW::SPECIAL_WORDS[0]);  // HAPPY
             illuminateWord(ledStates, Mapping45BW::SPECIAL_WORDS[1]);  // BIRTHDAY
+        } break;
+
+        case MappingType::MAPPING_69_GERMAN: {
+            illuminateWord(ledStates, Mapping69::SPECIAL_WORDS[0]);
+            illuminateWord(ledStates, Mapping69::SPECIAL_WORDS[1]);
         } break;
 
         case MappingType::MAPPING_110_GERMAN: {
@@ -408,8 +446,7 @@ String LEDMappingManager::getAvailableMappingsJSON() const {
     String json = "[";
     json += "{\"name\":\"45cm German\",\"id\":\"45\",\"type\":0,\"led_count\":125,\"status\":\"active\"}";
     json += ",{\"name\":\"45cm Swabian (BW)\",\"id\":\"45bw\",\"type\":1,\"led_count\":125,\"status\":\"active\"}";
-    // Uncomment when 110-LED mapping is implemented:
-    // json += ",{\"name\":\"110-LED German\",\"id\":\"110\",\"type\":2,\"led_count\":110,\"status\":\"coming_soon\"}";
+    json += ",{\"name\":\"69cm German\",\"id\":\"69\",\"type\":2,\"led_count\":125,\"status\":\"active\"}";
     json += "]";
     return json;
 }
@@ -423,6 +460,9 @@ uint8_t LEDMappingManager::getWiFiStatusLED() const {
             break;
         case MappingType::MAPPING_45BW_GERMAN:
             led = Mapping45BW::STATUS_LED_WIFI;
+            break;
+        case MappingType::MAPPING_69_GERMAN:
+            led = Mapping69::STATUS_LED_WIFI;
             break;
         case MappingType::MAPPING_110_GERMAN:
             led = 11;
@@ -443,6 +483,9 @@ uint8_t LEDMappingManager::getSystemStatusLED() const {
         case MappingType::MAPPING_45BW_GERMAN:
             led = Mapping45BW::STATUS_LED_SYSTEM;
             break;
+        case MappingType::MAPPING_69_GERMAN:
+            led = Mapping69::STATUS_LED_SYSTEM;
+            break;
         case MappingType::MAPPING_110_GERMAN:
             led = 10;
             break;
@@ -459,6 +502,8 @@ const uint8_t* LEDMappingManager::getStartupSequence() const {
             return Mapping45::STARTUP_SEQUENCE;
         case MappingType::MAPPING_45BW_GERMAN:
             return Mapping45BW::STARTUP_SEQUENCE;
+        case MappingType::MAPPING_69_GERMAN:
+            return Mapping69::STARTUP_SEQUENCE;
         case MappingType::MAPPING_110_GERMAN:
             return Mapping45::STARTUP_SEQUENCE;
         default:
@@ -472,6 +517,8 @@ uint16_t LEDMappingManager::getStartupSequenceLength() const {
             return Mapping45::STARTUP_SEQUENCE_LENGTH;
         case MappingType::MAPPING_45BW_GERMAN:
             return Mapping45BW::STARTUP_SEQUENCE_LENGTH;
+        case MappingType::MAPPING_69_GERMAN:
+            return Mapping69::STARTUP_SEQUENCE_LENGTH;
         case MappingType::MAPPING_110_GERMAN:
             return Mapping45::STARTUP_SEQUENCE_LENGTH;
         default:
